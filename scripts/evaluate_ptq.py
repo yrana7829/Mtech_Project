@@ -19,7 +19,9 @@ _, _, test_loader = get_dataset(dataset)
 
 print("Loading PTQ model...")
 model = torch.load(
-    f"results/checkpoints/{dataset}_{model_name}_ptq.pth", map_location=device
+    f"results/checkpoints/{dataset}_{model_name}_ptq.pth",
+    map_location=device,
+    weights_only=False,
 )
 
 model.eval()
