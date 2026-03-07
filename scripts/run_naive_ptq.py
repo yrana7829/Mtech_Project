@@ -49,7 +49,7 @@ def main():
 
     print("Evaluating quantized model...")
 
-    acc = evaluate(quant_model, test_loader, device)
+    acc = evaluate(quant_model, test_loader, torch.device("cpu"))
 
     print("Quantized accuracy:", acc * 100)
 
