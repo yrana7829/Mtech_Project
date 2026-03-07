@@ -6,7 +6,7 @@ import torch.quantization as quant
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.datasets.dataloader import get_dataset
+from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
