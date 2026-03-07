@@ -1,6 +1,13 @@
+import sys
+import os
+
 import torch
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from src.dataset.dataloader import get_dataset
 from src.evaluation.evaluate import evaluate
+
 
 dataset = "eurosat"
 model_name = "mobilenetv2"
