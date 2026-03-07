@@ -1,5 +1,5 @@
 import torch
-from src.datasets.dataloader import get_dataset
+from src.dataset.dataloader import get_dataset
 from src.evaluation.evaluate import evaluate
 
 dataset = "eurosat"
