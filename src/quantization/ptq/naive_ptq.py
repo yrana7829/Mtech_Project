@@ -1,31 +1,41 @@
 import torch
 import torch.quantization as quant
-from src.quantization.quant_model import QuantizedModel
 
 
 def naive_ptq(model, calibration_loader, device):
 
-    # PTQ runs on CPU
-    model = QuantizedModel(model)
+    print("\nStarting Naive PTQ")
+
+    device = torch.device("cpu")
     model.eval()
     model.to(device)
 
-    # Set backend
+    # Required backend
     torch.backends.quantized.engine = "fbgemm"
 
-    # Assign quantization config
+    # IMPORTANT: fuse layers for ResNet
+    if hasattr(model, "fuse_model"):
+        model.fuse_model()
+
+    # Attach qconfig
     model.qconfig = quant.get_default_qconfig("fbgemm")
 
-    # Prepare model
+    print("Preparing model for calibration...")
     quant.prepare(model, inplace=True)
 
-    # Calibration pass
+    # Calibration
+    print("Running calibration...")
     with torch.no_grad():
-        for images, _ in calibration_loader:
+        for i, (images, _) in enumerate(calibration_loader):
             images = images.to(device)
             model(images)
 
-    # Convert to quantized model
+            if i > 50:  # limit calibration batches
+                break
+
+    print("Converting to quantized model...")
     quantized_model = quant.convert(model, inplace=False)
+
+    print("PTQ complete\n")
 
     return quantized_model

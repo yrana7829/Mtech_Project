@@ -44,14 +44,14 @@ def main():
     print("Running naive PTQ...")
 
     quant_model = naive_ptq(model, train_loader, device)
+    torch.save(
+        quant_model.state_dict(),
+        f"results/checkpoints/{args.dataset}_{args.model}_ptq.pth",
+    )
+
+    print("Quantized model saved")
 
     print("PTQ finished")
-
-    print("Evaluating quantized model...")
-
-    acc = evaluate(quant_model, test_loader, torch.device("cpu"))
-
-    print("Quantized accuracy:", acc * 100)
 
 
 if __name__ == "__main__":
