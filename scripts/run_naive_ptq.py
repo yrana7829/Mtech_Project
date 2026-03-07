@@ -27,23 +27,15 @@ def main():
 
     args = parser.parse_args()
 
-    print("Arguments parsed:", args)
-
     device = torch.device("cpu")
-
-    print("Loading dataset...")
 
     train_loader, _, test_loader = get_dataset(args.dataset)
 
     print("Dataset loaded")
 
-    print("Loading model...")
-
     model = get_model(args.model, num_classes=10)
 
     print("Model loaded")
-
-    print("Loading checkpoint...")
 
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
 

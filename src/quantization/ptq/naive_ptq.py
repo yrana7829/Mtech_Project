@@ -1,14 +1,14 @@
 import torch
 import torch.quantization as quant
+from src.quantization.quant_model import QuantizedModel
 
 
 def naive_ptq(model, calibration_loader, device):
 
     # PTQ runs on CPU
-    device = torch.device("cpu")
-    model.to(device)
-
+    model = QuantizedModel(model)
     model.eval()
+    model.to(device)
 
     # Set backend
     torch.backends.quantized.engine = "fbgemm"
