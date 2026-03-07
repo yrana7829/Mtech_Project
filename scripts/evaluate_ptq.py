@@ -2,12 +2,10 @@ import sys
 import os
 import torch
 import argparse
-import torch.quantization as quant
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
-from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
 
@@ -26,22 +24,13 @@ def main():
     print("Loading dataset...")
     _, _, test_loader = get_dataset(args.dataset)
 
-    print("Rebuilding quantized model architecture...")
+    print("Loading quantized model...")
 
-    model = get_model(args.model, num_classes=10)
-
-    torch.backends.quantized.engine = "fbgemm"
-
-    if hasattr(model, "fuse_model"):
-        model.fuse_model()
-
-    model.qconfig = quant.get_default_qconfig("fbgemm")
-
-    quant.prepare(model, inplace=True)
-    quant.convert(model, inplace=True)
-
-    print("Loading quantized weights...")
-    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
+    model = torch.load(
+        args.checkpoint,
+        map_location=device,
+        weights_only=False,  # required for PyTorch 2.6+
+    )
 
     model.eval()
 
