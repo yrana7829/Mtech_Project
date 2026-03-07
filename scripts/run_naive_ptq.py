@@ -2,22 +2,55 @@ import sys
 import os
 import torch
 import argparse
-
-print("Script started")
+import torch.quantization as quant
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-print("Imports path set")
-
-from src.dataset.dataloader import get_dataset
+from src.datasets.dataloader import get_dataset
 from src.models.model_loader import get_model
-from src.quantization.ptq.naive_ptq import naive_ptq
-from src.evaluation.evaluate import evaluate
+
+
+def naive_ptq(model, calibration_loader):
+
+    print("\nStarting Naive PTQ")
+
+    device = torch.device("cpu")
+    model.eval()
+    model.to(device)
+
+    torch.backends.quantized.engine = "fbgemm"
+
+    # Fuse layers (required for ResNet PTQ)
+    if hasattr(model, "fuse_model"):
+        model.fuse_model()
+
+    # Assign quantization config
+    model.qconfig = quant.get_default_qconfig("fbgemm")
+
+    print("Preparing model for calibration...")
+    quant.prepare(model, inplace=True)
+
+    # Calibration
+    print("Running calibration...")
+    with torch.no_grad():
+        for i, (images, _) in enumerate(calibration_loader):
+            images = images.to(device)
+            model(images)
+
+            if i > 50:  # limit calibration batches
+                break
+
+    print("Converting model to INT8...")
+    quantized_model = quant.convert(model, inplace=False)
+
+    print("PTQ conversion finished\n")
+
+    return quantized_model
 
 
 def main():
 
-    print("Entering main()")
+    print("Script started")
 
     parser = argparse.ArgumentParser()
 
@@ -29,29 +62,23 @@ def main():
 
     device = torch.device("cpu")
 
-    train_loader, _, test_loader = get_dataset(args.dataset)
+    print("Loading dataset...")
+    train_loader, _, _ = get_dataset(args.dataset)
 
-    print("Dataset loaded")
-
+    print("Loading model...")
     model = get_model(args.model, num_classes=10)
 
-    print("Model loaded")
-
+    print("Loading FP32 checkpoint...")
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
 
-    print("Checkpoint loaded")
+    quant_model = naive_ptq(model, train_loader)
 
-    print("Running naive PTQ...")
+    save_path = f"results/checkpoints/{args.dataset}_{args.model}_ptq.pth"
 
-    quant_model = naive_ptq(model, train_loader, device)
-    torch.save(
-        quant_model,
-        f"results/checkpoints/{args.dataset}_{args.model}_ptq.pth",
-    )
+    print("Saving quantized weights...")
+    torch.save(quant_model.state_dict(), save_path)
 
-    print("Quantized model saved")
-
-    print("PTQ finished")
+    print(f"PTQ weights saved to: {save_path}")
 
 
 if __name__ == "__main__":

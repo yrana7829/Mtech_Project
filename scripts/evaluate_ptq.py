@@ -1,32 +1,56 @@
 import sys
 import os
-
 import torch
+import argparse
+import torch.quantization as quant
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
+from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
 
-dataset = "eurosat"
-model_name = "mobilenetv2"
+def main():
 
-device = torch.device("cpu")
+    parser = argparse.ArgumentParser()
 
-print("Loading dataset...")
-_, _, test_loader = get_dataset(dataset)
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--checkpoint", required=True)
 
-print("Loading PTQ model...")
-model = torch.load(
-    f"results/checkpoints/{dataset}_{model_name}_ptq.pth",
-    map_location=device,
-    weights_only=False,
-)
+    args = parser.parse_args()
 
-model.eval()
+    device = torch.device("cpu")
 
-print("Running evaluation...")
-acc = evaluate(model, test_loader, device)
+    print("Loading dataset...")
+    _, _, test_loader = get_dataset(args.dataset)
 
-print("PTQ Accuracy:", acc * 100)
+    print("Rebuilding quantized model architecture...")
+
+    model = get_model(args.model, num_classes=10)
+
+    torch.backends.quantized.engine = "fbgemm"
+
+    if hasattr(model, "fuse_model"):
+        model.fuse_model()
+
+    model.qconfig = quant.get_default_qconfig("fbgemm")
+
+    quant.prepare(model, inplace=True)
+    quant.convert(model, inplace=True)
+
+    print("Loading quantized weights...")
+    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
+
+    model.eval()
+
+    print("Running evaluation...\n")
+
+    acc = evaluate(model, test_loader, device)
+
+    print(f"\nPTQ Accuracy: {acc*100:.2f}%")
+
+
+if __name__ == "__main__":
+    main()
