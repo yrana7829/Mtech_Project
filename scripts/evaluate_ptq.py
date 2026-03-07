@@ -3,7 +3,7 @@ from src.dataset.dataloader import get_dataset
 from src.evaluation.evaluate import evaluate
 
 dataset = "eurosat"
-model_name = "resnet18"
+model_name = "mobilenetv2"
 
 device = torch.device("cpu")
 
