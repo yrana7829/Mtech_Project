@@ -45,7 +45,7 @@ def main():
 
     quant_model = naive_ptq(model, train_loader, device)
     torch.save(
-        quant_model.state_dict(),
+        quant_model,
         f"results/checkpoints/{args.dataset}_{args.model}_ptq.pth",
     )
 
