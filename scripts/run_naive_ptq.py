@@ -4,22 +4,28 @@ import torch.quantization as quant
 
 def naive_ptq(model, calibration_loader, device):
 
-    model.eval()
+    # PTQ runs on CPU
+    device = torch.device("cpu")
     model.to(device)
 
-    # assign quantization configuration
+    model.eval()
+
+    # Set backend
+    torch.backends.quantized.engine = "fbgemm"
+
+    # Assign quantization config
     model.qconfig = quant.get_default_qconfig("fbgemm")
 
-    # prepare model for calibration
+    # Prepare model
     quant.prepare(model, inplace=True)
 
-    # calibration pass
+    # Calibration pass
     with torch.no_grad():
         for images, _ in calibration_loader:
             images = images.to(device)
             model(images)
 
-    # convert to quantized model
-    quantized_model = quant.convert(model, inplace=True)
+    # Convert to quantized model
+    quantized_model = quant.convert(model, inplace=False)
 
     return quantized_model
