@@ -1,53 +1,66 @@
+import sys
+import os
 import torch
-import torch.quantization as quant
+import argparse
+
+print("Script started")
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+print("Imports path set")
+
+from src.dataset.dataloader import get_dataset
+from src.models.model_loader import get_model
+from src.quantization.ptq.naive_ptq import naive_ptq
+from src.evaluation.evaluate import evaluate
 
 
-def naive_ptq(model, calibration_loader, device):
+def main():
 
-    print("\n===== Starting Naive PTQ =====")
+    print("Entering main()")
 
-    # PTQ must run on CPU
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--checkpoint", required=True)
+
+    args = parser.parse_args()
+
+    print("Arguments parsed:", args)
+
     device = torch.device("cpu")
-    model.to(device)
-    model.eval()
 
-    print("Model moved to CPU")
+    print("Loading dataset...")
 
-    # Set quantization backend
-    torch.backends.quantized.engine = "fbgemm"
-    print("Quantization backend set to:", torch.backends.quantized.engine)
+    train_loader, _, test_loader = get_dataset(args.dataset)
 
-    # Assign quantization configuration
-    model.qconfig = quant.get_default_qconfig("fbgemm")
-    print("QConfig assigned")
+    print("Dataset loaded")
 
-    # Prepare model for calibration
-    quant.prepare(model, inplace=True)
-    print("Model prepared for calibration")
+    print("Loading model...")
 
-    print("Starting calibration...")
+    model = get_model(args.model, num_classes=10)
 
-    with torch.no_grad():
+    print("Model loaded")
 
-        for i, (images, _) in enumerate(calibration_loader):
+    print("Loading checkpoint...")
 
-            images = images.to(device)
-            model(images)
+    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
 
-            if i % 20 == 0:
-                print(f"Calibration batch {i}")
+    print("Checkpoint loaded")
 
-            # stop early (for speed)
-            if i == 50:
-                break
+    print("Running naive PTQ...")
 
-    print("Calibration completed")
+    quant_model = naive_ptq(model, train_loader, device)
 
-    # Convert to quantized model
-    quantized_model = quant.convert(model, inplace=False)
+    print("PTQ finished")
 
-    print("Model converted to INT8")
+    print("Evaluating quantized model...")
 
-    print("===== Naive PTQ Complete =====\n")
+    acc = evaluate(quant_model, test_loader, device)
 
-    return quantized_model
+    print("Quantized accuracy:", acc * 100)
+
+
+if __name__ == "__main__":
+    main()
