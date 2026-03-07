@@ -1,0 +1,46 @@
+import sys
+import os
+import torch
+import argparse
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src.dataset.dataloader import get_dataset
+from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
+from src.quantization.ptq.optimized_ptq import optimized_ptq
+
+
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--checkpoint", required=True)
+
+    args = parser.parse_args()
+
+    print("Loading dataset...")
+
+    train_loader, _, test_loader = get_dataset(args.dataset)
+
+    print("Loading model...")
+
+    model = get_model(args.model, num_classes=10)
+
+    print("Loading FP32 checkpoint...")
+
+    model.load_state_dict(torch.load(args.checkpoint, map_location="cpu"))
+
+    quant_model = optimized_ptq(model, train_loader)
+
+    print("\nEvaluating optimized PTQ model...\n")
+
+    acc = evaluate(quant_model, test_loader, torch.device("cpu"))
+
+    print(f"\nOptimized PTQ Accuracy: {acc*100:.2f}%")
+
+
+if __name__ == "__main__":
+    main()
