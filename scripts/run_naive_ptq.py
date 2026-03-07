@@ -6,8 +6,9 @@ import torch.quantization as quant
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.dataset.dataloader import get_dataset
+from src.datasets.dataloader import get_dataset
 from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
 
 
 def naive_ptq(model, calibration_loader):
@@ -19,7 +20,6 @@ def naive_ptq(model, calibration_loader):
 
     torch.backends.quantized.engine = "fbgemm"
 
-    # fuse layers
     if hasattr(model, "fuse_model"):
         model.fuse_model()
 
@@ -31,13 +31,12 @@ def naive_ptq(model, calibration_loader):
 
     with torch.no_grad():
         for i, (images, _) in enumerate(calibration_loader):
-            images = images.to(device)
             model(images)
 
             if i > 50:
                 break
 
-    print("Converting model to INT8...")
+    print("Converting to INT8...")
 
     quantized_model = quant.convert(model, inplace=False)
 
@@ -55,7 +54,7 @@ def main():
     args = parser.parse_args()
 
     print("Loading dataset...")
-    train_loader, _, _ = get_dataset(args.dataset)
+    train_loader, _, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
     model = get_model(args.model, num_classes=10)
@@ -65,12 +64,16 @@ def main():
 
     quant_model = naive_ptq(model, train_loader)
 
-    save_path = f"results/checkpoints/{args.dataset}_{args.model}_ptq.pth"
+    print("\nEvaluating quantized model...\n")
 
-    print("Saving full quantized model...")
-    torch.save(quant_model, save_path)
+    acc = evaluate(quant_model, test_loader, torch.device("cpu"))
 
-    print("Saved:", save_path)
+    print(f"\nNaive PTQ Accuracy: {acc*100:.2f}%")
+
+    os.makedirs("results/ptq_results", exist_ok=True)
+
+    with open("results/ptq_results/naive_ptq_results.txt", "a") as f:
+        f.write(f"{args.dataset},{args.model},{acc*100:.2f}\n")
 
 
 if __name__ == "__main__":
