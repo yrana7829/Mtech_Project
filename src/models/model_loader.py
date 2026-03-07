@@ -1,5 +1,6 @@
 from torchvision.models.quantization import resnet18
 from torchvision.models import mobilenet_v2
+import torch.nn as nn
 
 
 def get_model(model_name, num_classes):
