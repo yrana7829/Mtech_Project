@@ -1,0 +1,23 @@
+# Python environment
+venv/
+.env
+__pycache__/
+*.pyc
+
+# Data and Models (Avoid uploading heavy files to GitHub)
+datasets/
+data/
+*.pth
+*.pt
+*.onnx
+*.weights
+*.bin
+
+# Logs and Outputs
+logs/
+results/
+runs/
+.ipynb_checkpoints/
+
+# System files
+.DS_Store

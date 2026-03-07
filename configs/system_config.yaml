@@ -1,0 +1,8 @@
+paths:
+
+  raw_datasets: datasets/raw
+  processed_datasets: datasets/processed
+
+  checkpoints: results/checkpoints
+  logs: results/logs
+  metrics: results/metrics
