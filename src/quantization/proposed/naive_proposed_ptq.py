@@ -25,9 +25,6 @@ def apply_naive_ptq(model):
             weight = module.weight.data
             quant_weight = quantize_weight(weight)
 
-            # restore original scale if LPS was applied
-            if hasattr(module, "lps_scale"):
-                quant_weight = quant_weight * module.lps_scale
             module.weight.data = quant_weight
 
             print(f"Quantized {name}")

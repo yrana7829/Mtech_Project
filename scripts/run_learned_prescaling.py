@@ -8,7 +8,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
-from src.quantization.proposed.learned_prescaling import apply_learned_prescaling
+
+from src.quantization.proposed.learned_prescaling import (
+    apply_learned_prescaling,
+    wrap_lps_layers,
+)
+
 from src.quantization.proposed.naive_proposed_ptq import apply_naive_ptq
 
 
@@ -43,6 +48,9 @@ def main():
 
     print("\nApplying Learned Pre-Scaling...")
     model = apply_learned_prescaling(model, device)
+
+    print("\nWrapping LPS layers...")
+    model = wrap_lps_layers(model)
 
     print("\nApplying Naive PTQ...")
     model = apply_naive_ptq(model)
