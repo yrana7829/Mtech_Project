@@ -11,6 +11,12 @@ from src.evaluation.evaluate import evaluate
 
 from src.quantization.proposed.proposed_twc import apply_proposed_twc
 from src.quantization.proposed.naive_proposed_ptq import apply_naive_ptq
+from src.evaluation.metrics import (
+    count_parameters,
+    compute_model_size,
+    compute_average_bitwidth,
+    measure_latency,
+)
 
 
 def main():
@@ -50,13 +56,24 @@ def main():
 
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
+    params = count_parameters(model)
+    model_size = compute_model_size(model)
+    avg_bits = compute_average_bitwidth(model)
+    latency = measure_latency(model, test_loader, device)
+    print(f"\nLPS Accuracy: {acc*100:.2f}%")
+    print(f"Parameters: {params}")
+    print(f"Model Size: {model_size:.2f} MB")
+    print(f"Average Bit-Width: {avg_bits:.2f}")
+    print(f"Latency: {latency:.4f} s")
 
     print(f"\nProposed TWC Accuracy: {acc*100:.2f}%")
 
     os.makedirs("results/proposed_results", exist_ok=True)
 
     with open("results/proposed_results/proposed_twc_results.txt", "a") as f:
-        f.write(f"{args.dataset},{args.model},{acc*100:.2f}\n")
+        f.write(
+            f"{args.dataset},{args.model},{acc*100:.2f},{model_size:.2f},{avg_bits:.2f},{latency:.6f}\n"
+        )
 
 
 if __name__ == "__main__":
