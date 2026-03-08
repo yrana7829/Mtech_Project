@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
-from src.models.model_loader import load_model
+from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
 
@@ -18,7 +18,7 @@ def main(args):
 
     train_loader, val_loader, test_loader = get_dataset(args.dataset)
 
-    model = load_model(args.model)
+    model = get_model(args.model)
 
     checkpoint = torch.load(args.checkpoint)
     model.load_state_dict(checkpoint)
