@@ -1,6 +1,12 @@
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import load_model
 from src.evaluation.evaluate import evaluate
+
 
 from src.quantization.qat.qat_train import run_qat_training
 

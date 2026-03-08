@@ -6,7 +6,7 @@ import torch.quantization as tq
 from .qat_prepare import prepare_qat_model
 
 
-def run_qat_training(model, train_loader, val_loader, epochs=10, lr=1e-4):
+def run_qat_training(model, train_loader, val_loader, epochs=15, lr=1e-4):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
