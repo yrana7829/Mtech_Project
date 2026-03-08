@@ -2,6 +2,10 @@
 
 import argparse
 import torch
+import os
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataloader
 from src.models.model_loader import load_model
