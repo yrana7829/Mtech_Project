@@ -10,15 +10,12 @@ class AdaRoundQuantizer(nn.Module):
         self.weight = weight
         self.num_bits = num_bits
 
-        qmin = -(2 ** (num_bits - 1))
-        qmax = (2 ** (num_bits - 1)) - 1
+        qmax = 2 ** (num_bits - 1) - 1
 
-        w_min = weight.min()
-        w_max = weight.max()
+        # symmetric quantization scale
+        self.scale = weight.abs().max() / qmax
 
-        self.scale = (w_max - w_min) / float(qmax - qmin + 1e-8)
-        self.zero_point = qmin - torch.round(w_min / self.scale)
-
+        # learnable rounding parameter
         self.alpha = nn.Parameter(torch.zeros_like(weight))
 
     def h(self):
@@ -27,18 +24,21 @@ class AdaRoundQuantizer(nn.Module):
     def quantize(self):
 
         w_scaled = self.weight / self.scale
+
         w_floor = torch.floor(w_scaled)
 
-        w_q = w_floor + self.h()
+        # adaptive rounding
+        w_bar = w_floor + self.h()
 
-        qmin = -(2 ** (self.num_bits - 1))
-        qmax = (2 ** (self.num_bits - 1)) - 1
+        qmax = 2 ** (self.num_bits - 1) - 1
+        qmin = -qmax - 1
 
-        w_q = torch.clamp(w_q + self.zero_point, qmin, qmax)
+        w_bar = torch.clamp(w_bar, qmin, qmax)
 
-        w_dequant = (w_q - self.zero_point) * self.scale
+        # dequantize
+        w_q = w_bar * self.scale
 
-        return w_dequant
+        return w_q
 
 
 def apply_adaround_layer(layer, iters=200, lr=1e-3):
