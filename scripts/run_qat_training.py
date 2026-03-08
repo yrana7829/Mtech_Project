@@ -6,8 +6,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
-
-
 from src.quantization.qat.qat_train import run_qat_training
 
 import torch
@@ -16,23 +14,29 @@ import argparse
 
 def main(args):
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     train_loader, val_loader, test_loader = get_dataset(args.dataset)
+
     num_classes = len(train_loader.dataset.classes)
 
     model = get_model(args.model, num_classes=num_classes)
 
-    checkpoint = torch.load(args.checkpoint)
+    checkpoint = torch.load(args.checkpoint, map_location=device)
     model.load_state_dict(checkpoint)
 
+    model = model.to(device)
+
     print("Evaluating FP32 model")
-    evaluate(model, test_loader)
+    evaluate(model, test_loader, device)
 
     print("Running QAT training")
 
     qat_model = run_qat_training(model, train_loader, val_loader, epochs=args.epochs)
 
+    qat_model = qat_model.to(device)
+
     print("Evaluating QAT model")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     evaluate(qat_model, test_loader, device)
 
