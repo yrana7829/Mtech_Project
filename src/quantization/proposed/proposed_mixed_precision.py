@@ -36,12 +36,15 @@ def apply_proposed_mixed_precision(model):
             continue
 
         variance = weight.var()
+        num_params = weight.numel()
 
         # sensitivity rule
-        if variance > 0.02:
+        if num_params > 50000:
             bits = 8
         else:
             bits = 6
+
+        print(f"{name} → params={num_params} → {bits}-bit")
 
         quant_weight = quantize_weight(weight, bits)
 
