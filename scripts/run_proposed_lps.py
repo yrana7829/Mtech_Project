@@ -2,12 +2,13 @@ import argparse
 import torch
 import os
 import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.quantization.proposed.proposed_lps import (
     apply_proposed_lps,
     wrap_proposed_lps_layers,
 )
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
