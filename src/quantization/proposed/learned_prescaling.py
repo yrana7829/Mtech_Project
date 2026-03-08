@@ -1,57 +1,58 @@
-import sys
-import os
 import torch
-import argparse
-import torch.quantization as quant
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from src.dataset.dataloader import get_dataset
-from src.models.model_loader import get_model
-from src.evaluation.evaluate import evaluate
+import torch.nn as nn
 
 
-def main():
+def compute_optimal_scale(weight, num_bits=8):
 
-    parser = argparse.ArgumentParser()
+    qmax = 2 ** (num_bits - 1) - 1
 
-    parser.add_argument("--dataset", required=True)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--quant_checkpoint", required=True)
+    best_alpha = 1.0
+    best_error = float("inf")
 
-    args = parser.parse_args()
+    # ensure computation happens on same device
+    device = weight.device
 
-    device = torch.device("cpu")
+    for alpha in torch.linspace(0.5, 2.0, steps=20, device=device):
 
-    print("Loading dataset...")
-    _, _, test_loader = get_dataset(args.dataset)
+        scaled = weight * alpha
 
-    print("Rebuilding model architecture...")
-    model = get_model(args.model, num_classes=10)
+        scale = scaled.abs().max() / qmax + 1e-8
+
+        q = torch.round(scaled / scale)
+        q = torch.clamp(q, -qmax, qmax)
+
+        dequant = q * scale
+
+        recovered = dequant / alpha
+
+        error = torch.mean((weight - recovered) ** 2)
+
+        if error < best_error:
+            best_error = error
+            best_alpha = alpha.item()
+
+    return best_alpha
+
+
+def apply_learned_prescaling(model, device):
 
     model.eval()
     model.to(device)
 
-    # same backend used during PTQ
-    torch.backends.quantized.engine = "fbgemm"
+    print("\nApplying Learned Pre-Scaling...\n")
 
-    model.qconfig = quant.get_default_qconfig("fbgemm")
+    for name, module in model.named_modules():
 
-    print("Preparing quantized structure...")
-    quant.prepare(model, inplace=True)
-    quant.convert(model, inplace=True)
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
 
-    print("Loading quantized weights...")
-    model.load_state_dict(torch.load(args.quant_checkpoint, map_location="cpu"))
+            weight = module.weight.data
 
-    model.eval()
+            alpha = compute_optimal_scale(weight)
 
-    print("\nEvaluating quantized model...\n")
+            module.weight.data = weight * alpha
 
-    acc = evaluate(model, test_loader, device)
+            print(f"{name}  → scale={alpha:.3f}")
 
-    print(f"Quantized Accuracy: {acc*100:.2f}%")
+    print("\nLearned Pre-Scaling completed.\n")
 
-
-if __name__ == "__main__":
-    main()
+    return model

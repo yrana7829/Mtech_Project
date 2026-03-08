@@ -2,8 +2,10 @@ import sys
 import os
 import torch
 import argparse
+import torch.nn as nn
 import torch.quantization as quant
 
+# quantization backend
 torch.backends.quantized.engine = "fbgemm"
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -13,6 +15,27 @@ from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
 
+# ---------------------------------------------------
+# Quantization Wrapper
+# ---------------------------------------------------
+class QuantizedModel(nn.Module):
+
+    def __init__(self, model):
+        super().__init__()
+        self.quant = quant.QuantStub()
+        self.model = model
+        self.dequant = quant.DeQuantStub()
+
+    def forward(self, x):
+        x = self.quant(x)
+        x = self.model(x)
+        x = self.dequant(x)
+        return x
+
+
+# ---------------------------------------------------
+# Naive PTQ Function
+# ---------------------------------------------------
 def naive_ptq(model, calibration_loader):
 
     device = torch.device("cpu")
@@ -22,17 +45,20 @@ def naive_ptq(model, calibration_loader):
 
     torch.backends.quantized.engine = "fbgemm"
 
-    if hasattr(model, "fuse_model"):
-        model.fuse_model()
-
+    # attach qconfig
     model.qconfig = quant.get_default_qconfig("fbgemm")
 
+    print("Preparing model for calibration...")
     quant.prepare(model, inplace=True)
 
     print("Running calibration...")
 
     with torch.no_grad():
+
         for i, (images, _) in enumerate(calibration_loader):
+
+            images = images.to(device)
+
             model(images)
 
             if i > 50:
@@ -45,6 +71,9 @@ def naive_ptq(model, calibration_loader):
     return quantized_model
 
 
+# ---------------------------------------------------
+# Main
+# ---------------------------------------------------
 def main():
 
     parser = argparse.ArgumentParser()
@@ -64,6 +93,10 @@ def main():
     print("Loading FP32 checkpoint...")
     model.load_state_dict(torch.load(args.checkpoint, map_location="cpu"))
 
+    # IMPORTANT FIX: wrap model
+    model = QuantizedModel(model)
+
+    # run PTQ
     quant_model = naive_ptq(model, train_loader)
 
     print("\nEvaluating quantized model...\n")

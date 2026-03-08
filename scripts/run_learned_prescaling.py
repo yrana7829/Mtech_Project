@@ -1,54 +1,63 @@
+import argparse
 import torch
-import torch.nn as nn
+import os
+import sys
+
+# Add project root
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from src.dataset.dataloader import get_dataset
+from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
+from src.quantization.proposed.learned_prescaling import apply_learned_prescaling
+from src.quantization.ptq.adaround_ptq import apply_adaround
 
 
-def compute_optimal_scale(weight, num_bits=8):
+def main():
 
-    qmax = 2 ** (num_bits - 1) - 1
+    parser = argparse.ArgumentParser()
 
-    best_alpha = 1.0
-    best_error = float("inf")
+    parser.add_argument("--dataset", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--checkpoint", required=True)
 
-    # Search scaling factors
-    for alpha in torch.linspace(0.5, 2.0, steps=20):
+    args = parser.parse_args()
 
-        scaled = weight * alpha
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        scale = scaled.abs().max() / qmax + 1e-8
+    print("Loading dataset...")
+    train_loader, _, test_loader = get_dataset(args.dataset)
 
-        q = torch.round(scaled / scale)
-        q = torch.clamp(q, -qmax, qmax)
+    print("Loading model...")
+    model = get_model(args.model, num_classes=10)
 
-        dequant = q * scale
+    print("Loading checkpoint...")
+    state_dict = torch.load(args.checkpoint, map_location=device)
+    model.load_state_dict(state_dict)
 
-        recovered = dequant / alpha
-
-        error = torch.mean((weight - recovered) ** 2)
-
-        if error < best_error:
-            best_error = error
-            best_alpha = alpha.item()
-
-    return best_alpha
-
-
-def apply_learned_prescaling(model, device):
-
+    model = model.to(device)
     model.eval()
-    model.to(device)
 
-    print("\nApplying Learned Pre-Scaling...\n")
+    print("\nEvaluating FP32...")
+    fp32_acc = evaluate(model, test_loader, device)
+    print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
 
-    for name, module in model.named_modules():
+    print("\nApplying Learned Pre-Scaling...")
+    model = apply_learned_prescaling(model, device)
 
-        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+    print("\nApplying Quantization...")
+    model = apply_adaround(model, train_loader, device)
 
-            weight = module.weight.data
+    print("\nEvaluating quantized model...")
+    acc = evaluate(model, test_loader, device)
 
-            alpha = compute_optimal_scale(weight)
+    print(f"\nLPS Accuracy: {acc*100:.2f}%")
 
-            module.weight.data = weight * alpha
+    os.makedirs("results/proposed_results", exist_ok=True)
 
-            print(f"{name}  scale={alpha:.3f}")
+    with open("results/proposed_results/lps_results.txt", "a") as f:
+        f.write(f"{args.dataset},{args.model},{acc*100:.2f}\n")
 
-    return model
+
+if __name__ == "__main__":
+    main()
