@@ -20,21 +20,38 @@ def apply_proposed_mixed_precision(model):
 
     for name, module in model.named_modules():
 
+        # Case 1: normal Conv/Linear layer
         if isinstance(module, (nn.Conv2d, nn.Linear)):
 
             weight = module.weight.data
 
-            variance = weight.var()
+        # Case 2: LPS wrapped layer
+        elif hasattr(module, "module") and isinstance(
+            module.module, (nn.Conv2d, nn.Linear)
+        ):
 
-            # sensitivity rule
-            if variance > 0.02:
-                bits = 8
-            else:
-                bits = 6
+            weight = module.module.weight.data
 
-            module.weight.data = quantize_weight(weight, bits)
+        else:
+            continue
 
-            print(f"{name} → variance={variance.item():.6f} → {bits}-bit")
+        variance = weight.var()
+
+        # sensitivity rule
+        if variance > 0.02:
+            bits = 8
+        else:
+            bits = 6
+
+        quant_weight = quantize_weight(weight, bits)
+
+        # assign weight back correctly
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            module.weight.data = quant_weight
+        else:
+            module.module.weight.data = quant_weight
+
+        print(f"{name} → variance={variance.item():.6f} → {bits}-bit")
 
     print("\nProposed Mixed Precision completed.\n")
 
