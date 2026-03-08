@@ -6,7 +6,7 @@ from .proposed_twc import apply_proposed_twc
 from .proposed_mixed_precision import apply_proposed_mixed_precision
 
 
-def apply_ptq_plus_plus(model, device):
+def apply_proposed_ptq_pipeline(model, device):
 
     print("\nApplying PTQ++ Pipeline...\n")
 

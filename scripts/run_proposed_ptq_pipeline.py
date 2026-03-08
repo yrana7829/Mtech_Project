@@ -9,7 +9,7 @@ from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 
-from src.quantization.proposed.ptq_plus_plus import apply_ptq_plus_plus
+from src.quantization.proposed.proposed_ptq_pipeline import apply_proposed_ptq_pipeline
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
     print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
     print("\nApplying PTQ++...")
-    model = apply_ptq_plus_plus(model, device)
+    model = apply_proposed_ptq_pipeline(model, device)
 
     print("\nEvaluating PTQ++ model...")
     acc = evaluate(model, test_loader, device)
