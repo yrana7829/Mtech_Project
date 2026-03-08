@@ -2,7 +2,7 @@ import torch
 from tqdm import tqdm
 
 
-def evaluate(model, dataloader, device):
+def evaluate(model, loader, device):
 
     model.eval()
     model.to(device)
@@ -12,7 +12,7 @@ def evaluate(model, dataloader, device):
 
     with torch.no_grad():
 
-        for images, labels in tqdm(dataloader):
+        for images, labels in tqdm(loader):
 
             images = images.to(device)
             labels = labels.to(device)
@@ -24,6 +24,4 @@ def evaluate(model, dataloader, device):
             correct += (preds == labels).sum().item()
             total += labels.size(0)
 
-    accuracy = correct / total
-
-    return accuracy
+    return correct / total
