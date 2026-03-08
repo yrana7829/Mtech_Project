@@ -15,7 +15,7 @@ def quantize_weight(weight, num_bits=8):
     return w_q * scale
 
 
-def apply_adaround(model, calibration_loader, device):
+def apply_adaround(model, calibration_loader, device, num_bits=8):
 
     model.eval()
 
@@ -23,8 +23,8 @@ def apply_adaround(model, calibration_loader, device):
 
         if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
 
-            print(f"Applying AdaRound to {name}")
+            print(f"Applying AdaRound to {name} ({num_bits}-bit)")
 
-            module.weight.data = quantize_weight(module.weight.data)
+            module.weight.data = quantize_weight(module.weight.data, num_bits)
 
     return model
