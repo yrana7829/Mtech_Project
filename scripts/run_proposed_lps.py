@@ -2,6 +2,10 @@ import argparse
 import torch
 import os
 import sys
+from src.quantization.proposed.proposed_lps import (
+    apply_proposed_lps,
+    wrap_proposed_lps_layers,
+)
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -43,7 +47,10 @@ def main():
     print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
     print("\nApplying Proposed LPS...")
-    model = apply_proposed_lps(model, device)
+    model = apply_proposed_lps(model, torch.device)
+
+    print("\nWrapping Proposed LPS layers...")
+    model = wrap_proposed_lps_layers(model)
 
     print("\nApplying Naive PTQ...")
     model = apply_naive_ptq(model)

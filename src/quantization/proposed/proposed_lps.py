@@ -16,7 +16,7 @@ def apply_proposed_lps(model, device):
             weight = module.weight.data
 
             # RMS scaling
-            scale = torch.sqrt(torch.mean(weight**2)) + 1e-8
+            scale = torch.sqrt(torch.mean(weight**2) + 1e-8)
 
             # normalize weights
             module.weight.data = weight / scale
