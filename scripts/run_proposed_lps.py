@@ -48,7 +48,7 @@ def main():
     print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
     print("\nApplying Proposed LPS...")
-    model = apply_proposed_lps(model, torch.device)
+    model = apply_proposed_lps(model, device)
 
     print("\nWrapping Proposed LPS layers...")
     model = wrap_proposed_lps_layers(model)
