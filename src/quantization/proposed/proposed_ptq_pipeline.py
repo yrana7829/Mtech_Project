@@ -15,13 +15,13 @@ def apply_proposed_ptq_pipeline(model, device):
     model = apply_proposed_lps(model, device)
     model = wrap_proposed_lps_layers(model)
 
-    # Step 2: Tail Weighted Clipping
-    print("Step 2: Tail Weighted Clipping")
-    model = apply_proposed_twc(model)
-
     # Step 3: Mixed Precision
-    print("Step 3: Mixed Precision Allocation")
+    print("Step 2: Mixed Precision Allocation")
     model = apply_proposed_mixed_precision(model)
+
+    # Step 2: Tail Weighted Clipping
+    print("Step 3: Tail Weighted Clipping")
+    model = apply_proposed_twc(model)
 
     print("\nPTQ++ pipeline completed.\n")
 
