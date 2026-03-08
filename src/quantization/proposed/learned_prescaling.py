@@ -21,10 +21,10 @@ def apply_learned_prescaling(model, device):
             # normalize weights
             module.weight.data = weight / scale
 
-            # store scale for restoration after quantization
+            # store scale so PTQ can restore it
             module.register_buffer("lps_scale", scale)
 
-            print(f"{name}  → normalize_scale={scale.item():.4f}")
+            print(f"{name} → normalize_scale={scale.item():.4f}")
 
     print("\nLearned Pre-Scaling completed.\n")
 

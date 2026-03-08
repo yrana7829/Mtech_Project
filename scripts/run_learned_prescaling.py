@@ -3,14 +3,13 @@ import torch
 import os
 import sys
 
-# Add project root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 from src.quantization.proposed.learned_prescaling import apply_learned_prescaling
-from src.quantization.ptq.adaround_ptq import apply_adaround
+from src.quantization.proposed.naive_proposed_ptq import apply_naive_ptq
 
 
 def main():
@@ -26,7 +25,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("Loading dataset...")
-    train_loader, _, test_loader = get_dataset(args.dataset)
+    _, _, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
     model = get_model(args.model, num_classes=10)
@@ -38,26 +37,21 @@ def main():
     model = model.to(device)
     model.eval()
 
-    # FP32 evaluation
     print("\nEvaluating FP32...")
-    fp32_acc = evaluate(model, test_loader, device)
-    print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
+    fp32 = evaluate(model, test_loader, device)
+    print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
-    # Learned Pre-Scaling
     print("\nApplying Learned Pre-Scaling...")
     model = apply_learned_prescaling(model, device)
 
-    # Quantization
-    print("\nApplying Quantization...")
-    model = apply_adaround(model, train_loader, device)
+    print("\nApplying Naive PTQ...")
+    model = apply_naive_ptq(model)
 
-    # Evaluation
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
 
     print(f"\nLPS Accuracy: {acc*100:.2f}%")
 
-    # Save result
     os.makedirs("results/proposed_results", exist_ok=True)
 
     with open("results/proposed_results/lps_results.txt", "a") as f:
