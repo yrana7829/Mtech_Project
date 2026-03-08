@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 
 
-def quantize_weight(weight, num_bits):
+def quantize_weight(weight, bits):
 
-    qmax = 2 ** (num_bits - 1) - 1
+    qmax = 2 ** (bits - 1) - 1
 
     scale = weight.abs().max() / qmax + 1e-8
 
@@ -17,7 +17,7 @@ def quantize_weight(weight, num_bits):
 
 def apply_mixed_precision(model):
 
-    print("\nApplying Mixed Precision Quantization...\n")
+    print("\nApplying Mixed Precision Allocation...\n")
 
     first_conv = True
 
@@ -27,30 +27,25 @@ def apply_mixed_precision(model):
 
             weight = module.weight.data
 
-            # First convolution layer
             if first_conv:
                 bits = 8
                 first_conv = False
 
-            # Depthwise convolution
             elif module.groups == module.in_channels:
                 bits = 6
-
             else:
                 bits = 8
 
             module.weight.data = quantize_weight(weight, bits)
 
-            print(f"{name}  → {bits}-bit")
+            print(f"{name} → {bits}-bit")
 
         elif isinstance(module, nn.Linear):
 
-            weight = module.weight.data
+            module.weight.data = quantize_weight(module.weight.data, 8)
 
-            bits = 8
+            print(f"{name} → 8-bit")
 
-            module.weight.data = quantize_weight(weight, bits)
-
-            print(f"{name}  → {bits}-bit")
+    print("\nMixed Precision Allocation completed.\n")
 
     return model

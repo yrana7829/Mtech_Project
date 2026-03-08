@@ -12,6 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
 
 
 def ptq_fx(model, calibration_loader):
@@ -24,22 +25,19 @@ def ptq_fx(model, calibration_loader):
     qconfig = get_default_qconfig("fbgemm")
     qconfig_dict = {"": qconfig}
 
-    # Use real input from dataset
-    example_inputs = next(iter(calibration_loader))[0][:1]
+    # Trace using a real sample from your dataset
+    example_inputs = next(iter(calibration_loader))[0][:1].to(device)
 
     print("Preparing FX quantization...")
     prepared_model = prepare_fx(model, qconfig_dict, example_inputs)
 
     print("Running calibration...")
-
     with torch.no_grad():
         for i, (images, _) in enumerate(calibration_loader):
-
             images = images.to(device)
-
             prepared_model(images)
 
-            if i > 50:
+            if i > 50:  # calibration batches
                 break
 
     print("Converting to INT8...")
@@ -59,7 +57,7 @@ def main():
     args = parser.parse_args()
 
     print("Loading dataset...")
-    train_loader, _, _ = get_dataset(args.dataset)
+    train_loader, _, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
     model = get_model(args.model, num_classes=10)
@@ -69,14 +67,14 @@ def main():
 
     quant_model = ptq_fx(model, train_loader)
 
-    os.makedirs("quantized_models", exist_ok=True)
+    print("\nEvaluating quantized model...\n")
+    acc = evaluate(quant_model, test_loader, torch.device("cpu"))
 
-    save_path = f"quantized_models/{args.model}_{args.dataset}_fx_ptq.pth"
+    print(f"\nFX PTQ Accuracy: {acc*100:.2f}%")
 
-    print(f"Saving quantized model → {save_path}")
-
-    # Save full FX quantized model
-    torch.save(quant_model, save_path)
+    os.makedirs("results/ptq_results", exist_ok=True)
+    with open("results/ptq_results/fx_ptq_results.txt", "a") as f:
+        f.write(f"{args.dataset},{args.model},{acc*100:.2f}\n")
 
 
 if __name__ == "__main__":

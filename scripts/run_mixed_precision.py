@@ -9,6 +9,7 @@ from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 from src.quantization.proposed.mixed_precision import apply_mixed_precision
+from src.quantization.proposed.naive_proposed_ptq import apply_naive_ptq
 
 
 def main():
@@ -40,13 +41,13 @@ def main():
     fp32 = evaluate(model, test_loader, device)
     print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
-    print("\nApplying Mixed Precision Quantization...")
+    print("\nApplying Mixed Precision Allocation...")
     model = apply_mixed_precision(model)
 
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
 
-    print(f"\nMixed Precision Accuracy: {acc*100:.2f}%")
+    print(f"\nMPA Accuracy: {acc*100:.2f}%")
 
     os.makedirs("results/proposed_results", exist_ok=True)
 

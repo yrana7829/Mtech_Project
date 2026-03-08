@@ -11,7 +11,7 @@ from src.evaluation.evaluate import evaluate
 from src.quantization.proposed.tail_weighted_clipping import (
     apply_tail_weighted_clipping,
 )
-from src.quantization.ptq.naive_ptq import apply_naive_ptq
+from src.quantization.proposed.naive_proposed_ptq import apply_naive_ptq
 
 
 def main():
