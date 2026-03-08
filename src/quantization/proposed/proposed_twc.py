@@ -1,3 +1,5 @@
+from os import name
+
 import torch
 import torch.nn as nn
 
@@ -20,6 +22,9 @@ def apply_proposed_twc(model):
                 percentile = 99.8
 
             threshold = torch.quantile(weight.abs(), percentile / 100.0)
+            # Debug line
+            max_weight = weight.abs().max().item()
+            print(f"{name} → max_weight={max_weight:.4f}, threshold={threshold:.4f}")
 
             module.weight.data = torch.clamp(weight, -threshold, threshold)
 
