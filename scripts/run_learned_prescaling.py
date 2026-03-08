@@ -38,20 +38,26 @@ def main():
     model = model.to(device)
     model.eval()
 
+    # FP32 evaluation
     print("\nEvaluating FP32...")
     fp32_acc = evaluate(model, test_loader, device)
     print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
 
+    # Learned Pre-Scaling
     print("\nApplying Learned Pre-Scaling...")
     model = apply_learned_prescaling(model, device)
 
+    # Quantization
     print("\nApplying Quantization...")
+    model = apply_adaround(model, train_loader, device)
 
+    # Evaluation
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
 
     print(f"\nLPS Accuracy: {acc*100:.2f}%")
 
+    # Save result
     os.makedirs("results/proposed_results", exist_ok=True)
 
     with open("results/proposed_results/lps_results.txt", "a") as f:

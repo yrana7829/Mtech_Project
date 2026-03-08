@@ -2,7 +2,9 @@ import sys
 import os
 import torch
 import argparse
-import torch.quantization as quant
+
+from torch.ao.quantization import get_default_qconfig
+from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
 
 torch.backends.quantized.engine = "fbgemm"
 
@@ -12,18 +14,21 @@ from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 
 
-def naive_ptq(model, calibration_loader):
+def ptq_fx(model, calibration_loader):
 
     device = torch.device("cpu")
 
     model.eval()
     model.to(device)
 
-    # attach qconfig
-    model.qconfig = quant.get_default_qconfig("fbgemm")
+    qconfig = get_default_qconfig("fbgemm")
+    qconfig_dict = {"": qconfig}
 
-    print("Preparing model for calibration...")
-    quant.prepare(model, inplace=True)
+    # Use real input from dataset
+    example_inputs = next(iter(calibration_loader))[0][:1]
+
+    print("Preparing FX quantization...")
+    prepared_model = prepare_fx(model, qconfig_dict, example_inputs)
 
     print("Running calibration...")
 
@@ -32,15 +37,13 @@ def naive_ptq(model, calibration_loader):
 
             images = images.to(device)
 
-            model(images)
+            prepared_model(images)
 
             if i > 50:
                 break
 
     print("Converting to INT8...")
-    quantized_model = quant.convert(model, inplace=False)
-
-    quantized_model.eval()
+    quantized_model = convert_fx(prepared_model)
 
     return quantized_model
 
@@ -64,16 +67,16 @@ def main():
     print("Loading FP32 checkpoint...")
     model.load_state_dict(torch.load(args.checkpoint, map_location="cpu"))
 
-    quant_model = naive_ptq(model, train_loader)
+    quant_model = ptq_fx(model, train_loader)
 
     os.makedirs("quantized_models", exist_ok=True)
 
-    save_path = f"quantized_models/{args.model}_{args.dataset}_int8.pth"
+    save_path = f"quantized_models/{args.model}_{args.dataset}_fx_ptq.pth"
 
     print(f"Saving quantized model → {save_path}")
 
-    # IMPORTANT: save entire quantized model
-    torch.save(quant_model.state_dict(), save_path)
+    # Save full FX quantized model
+    torch.save(quant_model, save_path)
 
 
 if __name__ == "__main__":
