@@ -15,9 +15,9 @@ def apply_proposed_twc(model):
 
             # adaptive percentile
             if num_params > 50000:
-                percentile = 99.0
-            else:
                 percentile = 99.7
+            else:
+                percentile = 99.8
 
             threshold = torch.quantile(weight.abs(), percentile / 100.0)
 
