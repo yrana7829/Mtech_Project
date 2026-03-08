@@ -3,7 +3,7 @@
 import argparse
 import torch
 
-from src.datasets.dataloader import get_dataloader
+from src.dataset.dataloader import get_dataloader
 from src.models.model_loader import load_model
 from src.evaluation.evaluate import evaluate_model
 from src.quantization.ptq.adaround_ptq import apply_adaround
