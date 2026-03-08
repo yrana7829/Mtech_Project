@@ -2,31 +2,26 @@ import torch
 import torch.nn as nn
 
 
-def compute_clip_threshold(weight, percentile=99.0):
-
-    abs_weight = weight.abs().flatten()
-
-    threshold = torch.quantile(abs_weight, percentile / 100.0)
-
-    return threshold
-
-
 def apply_tail_weighted_clipping(model, percentile=99.0):
 
     print("\nApplying Tail-Weighted Clipping...\n")
 
     for name, module in model.named_modules():
 
-        if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
 
             weight = module.weight.data
 
-            clip_val = compute_clip_threshold(weight, percentile)
+            abs_weight = weight.abs().flatten()
 
-            clipped = torch.clamp(weight, -clip_val, clip_val)
+            clip_val = torch.quantile(abs_weight, percentile / 100.0)
 
-            module.weight.data = clipped
+            clipped_weight = torch.clamp(weight, -clip_val, clip_val)
 
-            print(f"{name}  clip={clip_val:.4f}")
+            module.weight.data = clipped_weight
+
+            print(f"{name} → clip={clip_val.item():.4f}")
+
+    print("\nTail-Weighted Clipping completed.\n")
 
     return model

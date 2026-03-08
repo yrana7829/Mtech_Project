@@ -8,8 +8,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
-from src.quantization.proposed.learned_prescaling import apply_learned_prescaling
-from src.quantization.ptq.adaround_ptq import apply_adaround
+from src.quantization.proposed.tail_weighted_clipping import (
+    apply_tail_weighted_clipping,
+)
+from src.quantization.ptq.naive_ptq import apply_naive_ptq
 
 
 def main():
@@ -25,7 +27,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("Loading dataset...")
-    train_loader, _, test_loader = get_dataset(args.dataset)
+    _, _, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
     model = get_model(args.model, num_classes=10)
@@ -41,20 +43,20 @@ def main():
     fp32 = evaluate(model, test_loader, device)
     print(f"FP32 Accuracy: {fp32*100:.2f}%")
 
-    print("\nApplying Learned Pre-Scaling...")
-    model = apply_learned_prescaling(model, device)
+    print("\nApplying Tail-Weighted Clipping...")
+    model = apply_tail_weighted_clipping(model)
 
-    print("\nApplying Quantization...")
-    model = apply_adaround(model, train_loader, device)
+    print("\nApplying Naive PTQ...")
+    model = apply_naive_ptq(model)
 
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
 
-    print(f"\nLPS Accuracy: {acc*100:.2f}%")
+    print(f"\nTWC Accuracy: {acc*100:.2f}%")
 
     os.makedirs("results/proposed_results", exist_ok=True)
 
-    with open("results/proposed_results/lps_results.txt", "a") as f:
+    with open("results/proposed_results/twc_results.txt", "a") as f:
         f.write(f"{args.dataset},{args.model},{acc*100:.2f}\n")
 
 
