@@ -10,14 +10,17 @@ def apply_proposed_ptq_pipeline_int4(model, device):
 
     print("\nApplying PTQ++ INT4 Pipeline...\n")
 
+    # Step 1: LPS
     print("Step 1: Proposed LPS")
     model = apply_proposed_lps(model, device)
     model = wrap_proposed_lps_layers(model)
 
-    print("Step 3: Tail Weighted Clipping")
+    # Step 2: Tail Weighted Clipping
+    print("Step 2: Tail Weighted Clipping")
     model = apply_proposed_twc(model)
 
-    print("Step 2: Mixed Precision INT4")
+    # Step 3: INT4 Mixed Precision
+    print("Step 3: Mixed Precision INT4")
     model = apply_proposed_mixed_precision_int4(model)
 
     print("\nPTQ++ INT4 pipeline completed.\n")
