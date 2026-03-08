@@ -8,8 +8,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
-from src.models.model_loader import load_model
-from src.evaluation.evaluate import evaluate_model
+from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
 from src.quantization.ptq.adaround_ptq import apply_adaround
 
 
@@ -29,7 +29,7 @@ def main():
     train_loader, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
-    model = load_model(args.model, args.dataset)
+    model = get_model(args.model, args.dataset)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
     model = model.to(device)
 
@@ -37,7 +37,7 @@ def main():
     model = apply_adaround(model, train_loader, device)
 
     print("Evaluating quantized model...")
-    acc = evaluate_model(model, test_loader, device)
+    acc = evaluate(model, test_loader, device)
 
     print(f"AdaRound Accuracy: {acc:.2f}%")
 
