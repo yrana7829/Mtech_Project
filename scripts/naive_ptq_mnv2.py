@@ -73,7 +73,7 @@ def main():
     print(f"Saving quantized model → {save_path}")
 
     # IMPORTANT: save entire quantized model
-    torch.save(quant_model, save_path)
+    torch.save(quant_model.state_dict(), save_path)
 
 
 if __name__ == "__main__":
