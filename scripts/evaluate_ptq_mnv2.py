@@ -25,8 +25,8 @@ def main():
 
     print("Loading quantized model...")
 
-    # load full quantized model
-    model = torch.load(args.quant_checkpoint, map_location="cpu")
+    # IMPORTANT FIX
+    model = torch.load(args.quant_checkpoint, map_location="cpu", weights_only=False)
 
     model.eval()
     model.to(device)
@@ -36,11 +36,6 @@ def main():
     acc = evaluate(model, test_loader, device)
 
     print(f"Quantized Accuracy: {acc*100:.2f}%")
-
-    os.makedirs("results/ptq_results", exist_ok=True)
-
-    with open("results/ptq_results/naive_ptq_results.txt", "a") as f:
-        f.write(f"{args.dataset},{acc*100:.2f}\n")
 
 
 if __name__ == "__main__":
