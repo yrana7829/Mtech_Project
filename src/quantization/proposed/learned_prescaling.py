@@ -12,7 +12,7 @@ def compute_optimal_scale(weight, num_bits=8):
     # ensure computation happens on same device
     device = weight.device
 
-    for alpha in torch.linspace(0.5, 2.0, steps=20, device=device):
+    for alpha in torch.linspace(0.8, 2.0, steps=21, device=device):
 
         scaled = weight * alpha
 

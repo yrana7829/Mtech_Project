@@ -46,7 +46,6 @@ def main():
     model = apply_learned_prescaling(model, device)
 
     print("\nApplying Quantization...")
-    model = apply_adaround(model, train_loader, device)
 
     print("\nEvaluating quantized model...")
     acc = evaluate(model, test_loader, device)
