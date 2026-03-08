@@ -12,7 +12,7 @@ def evaluate(model, loader, device):
 
     with torch.no_grad():
 
-        for images, labels in tqdm(loader):
+        for images, labels in loader:
 
             images = images.to(device)
             labels = labels.to(device)

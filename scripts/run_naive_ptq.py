@@ -4,6 +4,8 @@ import torch
 import argparse
 import torch.quantization as quant
 
+torch.backends.quantized.engine = "fbgemm"
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
