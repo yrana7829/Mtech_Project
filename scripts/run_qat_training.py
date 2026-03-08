@@ -32,8 +32,9 @@ def main(args):
     qat_model = run_qat_training(model, train_loader, val_loader, epochs=args.epochs)
 
     print("Evaluating QAT model")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    evaluate(qat_model, test_loader)
+    evaluate(qat_model, test_loader, device)
 
     save_path = f"checkpoints/{args.model}_qat_{args.dataset}.pth"
 
