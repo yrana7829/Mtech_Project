@@ -7,7 +7,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.dataset.dataloader import get_dataloader
+from src.dataset.dataloader import get_dataset
 from src.models.model_loader import load_model
 from src.evaluation.evaluate import evaluate_model
 from src.quantization.ptq.adaround_ptq import apply_adaround
@@ -26,7 +26,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("Loading dataset...")
-    train_loader, test_loader = get_dataloader(args.dataset)
+    train_loader, test_loader = get_dataset(args.dataset)
 
     print("Loading model...")
     model = load_model(args.model, args.dataset)
