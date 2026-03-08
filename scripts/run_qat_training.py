@@ -17,8 +17,9 @@ import argparse
 def main(args):
 
     train_loader, val_loader, test_loader = get_dataset(args.dataset)
+    num_classes = len(train_loader.dataset.classes)
 
-    model = get_model(args.model)
+    model = get_model(args.model, num_classes=num_classes)
 
     checkpoint = torch.load(args.checkpoint)
     model.load_state_dict(checkpoint)
