@@ -32,24 +32,27 @@ def main():
 
     print("Loading FP32 checkpoint...")
     state_dict = torch.load(args.checkpoint, map_location=device)
-
     model.load_state_dict(state_dict)
 
     model = model.to(device)
     model.eval()
 
-    # Check FP32 accuracy first
+    # Evaluate FP32
     print("\nEvaluating FP32 model...")
     fp32_acc = evaluate(model, test_loader, device)
     print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
 
-    # Apply AdaRound
+    # Apply AdaRound PTQ
     print("\nApplying AdaRound PTQ...")
     model = apply_adaround(model, train_loader, device)
 
-    # Debug: check weights changed
+    # Debug: show sample quantized weights
     print("\nSample quantized weight values:")
-    print(model.conv1.weight.view(-1)[:5])
+
+    for m in model.modules():
+        if isinstance(m, torch.nn.Conv2d):
+            print(m.weight.view(-1)[:5])
+            break
 
     # Evaluate quantized model
     print("\nEvaluating quantized model...")

@@ -19,8 +19,10 @@ def naive_ptq(model, calibration_loader):
     model.eval()
     model.to(device)
 
+    # attach qconfig
     model.qconfig = quant.get_default_qconfig("fbgemm")
 
+    print("Preparing model for calibration...")
     quant.prepare(model, inplace=True)
 
     print("Running calibration...")
@@ -36,8 +38,9 @@ def naive_ptq(model, calibration_loader):
                 break
 
     print("Converting to INT8...")
-
     quantized_model = quant.convert(model, inplace=False)
+
+    quantized_model.eval()
 
     return quantized_model
 
@@ -69,7 +72,8 @@ def main():
 
     print(f"Saving quantized model → {save_path}")
 
-    torch.save(quant_model.state_dict(), save_path)
+    # IMPORTANT: save entire quantized model
+    torch.save(quant_model, save_path)
 
 
 if __name__ == "__main__":
