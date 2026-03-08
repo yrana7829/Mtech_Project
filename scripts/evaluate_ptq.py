@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
 from src.evaluation.evaluate import evaluate
+from src.models.model_loader import get_model
 
 
 def main():
@@ -24,14 +25,15 @@ def main():
     print("Loading dataset...")
     _, _, test_loader = get_dataset(args.dataset)
 
-    print("Loading quantized model...")
+    print("Loading model architecture...")
+    model = get_model(args.model, num_classes=10)
 
-    model = torch.load(
-        args.checkpoint,
-        map_location=device,
-        weights_only=False,  # required for PyTorch 2.6+
-    )
+    print("Loading checkpoint...")
+    state_dict = torch.load(args.checkpoint, map_location=device)
 
+    model.load_state_dict(state_dict)
+
+    model.to(device)
     model.eval()
 
     print("Running evaluation...\n")
