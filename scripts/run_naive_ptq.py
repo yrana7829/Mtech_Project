@@ -123,14 +123,27 @@ def main():
 
     print("\nEvaluating quantized model...\n")
 
+    model_dir = "results/Phase3_Results/checkpoints/MNV2"
+    os.makedirs(model_dir, exist_ok=True)
+
+    save_path = os.path.join(model_dir, "mnv2_eurosat_naive_ptq_int8.pth")
+
+    torch.save(quant_model.state_dict(), save_path)
+
+    print(f"Saved quantized model to: {save_path}")
+
     # 🔴 FIXED: use validation set
     acc = evaluate(quant_model, val_loader, torch.device("cpu"))
 
     print(f"\nNaive PTQ Accuracy: {acc*100:.2f}%")
 
-    os.makedirs("results/ptq_results", exist_ok=True)
+    log_dir = "results/Phase3_Results/logs"
 
-    with open("results/ptq_results/naive_ptq_results.txt", "a") as f:
+    os.makedirs(log_dir, exist_ok=True)
+
+    log_file = os.path.join(log_dir, "naive_ptq_mnv2_eurosat_int8.csv")
+
+    with open(log_file, "a") as f:
         f.write(f"{args.dataset},{args.model},Naive,{acc*100:.2f}\n")
 
 
