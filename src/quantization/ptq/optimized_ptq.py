@@ -34,6 +34,7 @@ def optimized_ptq_fx(model, calibration_loader):
     if hasattr(model, "fuse_model"):
         model.fuse_model()
 
+    # disabling the cle to see if BN folding works fine
     # print("Applying Cross Layer Equalization...")
     # model = cross_layer_equalization(model)
 
