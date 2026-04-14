@@ -44,19 +44,17 @@ def get_dataset(dataset_name, batch_size=64):
         os.path.join(base_path, "test"), transform=test_transform
     )
 
+    # 🔴 FIXED: shuffle=False and num_workers=0 for determinism
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=2
+        train_dataset, batch_size=batch_size, shuffle=False, num_workers=0
     )
 
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, num_workers=2
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=0
     )
 
     test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, num_workers=2
+        test_dataset, batch_size=batch_size, shuffle=False, num_workers=0
     )
 
     return train_loader, val_loader, test_loader
-
-
-# git add
