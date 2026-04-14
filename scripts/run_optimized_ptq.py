@@ -96,5 +96,7 @@ def main():
         f.write(f"{args.dataset},{args.model},FX_Optimized,{acc*100:.2f}\n")
 
 
+# checking
+
 if __name__ == "__main__":
     main()
