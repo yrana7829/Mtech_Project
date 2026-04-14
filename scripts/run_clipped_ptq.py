@@ -12,6 +12,7 @@ from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 from src.quantization.ptq.clipped_ptq import clipped_ptq_fx
+from src.evaluation.performance import get_model_size, measure_latency
 
 
 # -------------------------------
@@ -73,6 +74,12 @@ def main():
     print(f"\nFX Clipped PTQ Accuracy: {acc*100:.2f}%")
 
     # -------------------------------
+    # Measure latency
+    # -------------------------------
+    latency = measure_latency(quant_model, val_loader, torch.device("cpu"))
+    print(f"Latency: {latency:.2f} ms")
+
+    # -------------------------------
     # SAVE MODEL
     # -------------------------------
     model_dir = "results/Phase3_Results/checkpoints/MNV2"
@@ -83,6 +90,12 @@ def main():
     torch.save(quant_model.state_dict(), save_path)
 
     print(f"Saved model to: {save_path}")
+    # -------------------------------
+    # Measure model size
+    # -------------------------------
+    model_size = get_model_size(save_path)
+
+    print(f"Model Size: {model_size:.2f} MB")
 
     # -------------------------------
     # SAVE LOG
@@ -93,7 +106,10 @@ def main():
     log_file = os.path.join(log_dir, "fx_clipped_ptq_mnv2_eurosat_int8.csv")
 
     with open(log_file, "a") as f:
-        f.write(f"{args.dataset},{args.model},FX_Clipped,{acc*100:.2f}\n")
+        f.write(
+            f"{args.dataset},{args.model},FX_Clipped,"
+            f"{acc*100:.2f},{model_size:.2f},{latency:.2f}\n"
+        )
 
 
 if __name__ == "__main__":
