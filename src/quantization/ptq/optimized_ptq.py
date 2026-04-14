@@ -37,7 +37,7 @@ def optimized_ptq_fx(model, calibration_loader):
     # print("Applying Cross Layer Equalization...")
     # model = cross_layer_equalization(model)
 
-    # FX quantization setup
+    # FX quantization setupp
     qconfig = get_default_qconfig("fbgemm")
     qconfig_dict = {"": qconfig}
 
