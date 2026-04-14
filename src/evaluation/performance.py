@@ -1,33 +1,51 @@
+import time
+import os
 import torch
-from torch.ao.quantization.observer import HistogramObserver
 
 
-class PercentileObserver(HistogramObserver):
-    def __init__(self, percentile=99.9, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.percentile = percentile
+# -------------------------------
+# Measure model size
+# -------------------------------
+def get_model_size(model_path):
 
-    def calculate_qparams(self):
+    size_mb = os.path.getsize(model_path) / (1024 * 1024)
 
-        # Use histogram + min/max to approximate distribution
-        hist = self.histogram
+    return size_mb
 
-        if hist.sum() == 0:
-            return super().calculate_qparams()
 
-        # Compute cumulative distribution
-        cdf = torch.cumsum(hist, dim=0)
-        cdf = cdf / cdf[-1]
+# -------------------------------
+# Measure latency
+# -------------------------------
+def measure_latency(model, dataloader, device, num_batches=20):
 
-        # Find percentile index
-        threshold_idx = torch.searchsorted(
-            cdf, torch.tensor(self.percentile / 100.0)
-        ).item()
+    model.eval()
+    model.to(device)
 
-        # Map index → value using min/max range
-        bin_width = (self.max_val - self.min_val) / len(hist)
+    timings = []
 
-        max_val = self.min_val + bin_width * (threshold_idx + 1)
-        min_val = -max_val  # symmetric clipping
+    with torch.no_grad():
 
-        return self._calculate_qparams(min_val, max_val)
+        # Warm-up
+        for i, (images, _) in enumerate(dataloader):
+            images = images.to(device)
+            model(images)
+            if i >= 5:
+                break
+
+        # Actual timing
+        for i, (images, _) in enumerate(dataloader):
+
+            images = images.to(device)
+
+            start = time.time()
+            model(images)
+            end = time.time()
+
+            timings.append(end - start)
+
+            if i >= num_batches:
+                break
+
+    avg_latency = sum(timings) / len(timings)
+
+    return avg_latency * 1000  # ms
