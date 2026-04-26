@@ -14,7 +14,7 @@ from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
 from src.evaluation.performance import get_model_size, measure_latency
 
-from torch.ao.quantization import get_default_qconfig
+from torch.ao.quantization import get_default_qconfig, QConfigMapping
 from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
 
 
@@ -32,11 +32,11 @@ torch.backends.quantized.engine = "fbgemm"
 
 
 # -------------------------------
-# Cross Layer Equalization (CLE)
+# Naive CLE (NOTE: simplified, not true CLE)
 # -------------------------------
 def cross_layer_equalization(model):
 
-    print("Applying Cross Layer Equalization (CLE)...")
+    print("Applying Naive CLE (independent channel scaling)...")
 
     for name, module in model.named_modules():
 
@@ -44,15 +44,11 @@ def cross_layer_equalization(model):
 
             w = module.weight.data
 
-            # reshape: [out_channels, -1]
             w_view = w.view(w.size(0), -1)
 
-            # max per output channel
             max_per_channel = w_view.abs().max(dim=1)[0]
 
-            # avoid division by zero
             scale = max_per_channel.mean() / (max_per_channel + 1e-8)
-
             scale = scale.view(-1, 1, 1, 1)
 
             module.weight.data *= scale
@@ -70,37 +66,24 @@ def cle_ptq_fx(model, calibration_loader):
     model.eval()
     model.to(device)
 
-    # -------------------------------
-    # Apply CLE BEFORE FX
-    # -------------------------------
+    # Apply naive CLE
     model = cross_layer_equalization(model)
 
-    # -------------------------------
-    # QConfig
-    # -------------------------------
+    # QConfig (modern API)
     qconfig = get_default_qconfig("fbgemm")
-    qconfig_dict = {"": qconfig}
+    qconfig_mapping = QConfigMapping().set_global(qconfig)
 
-    # -------------------------------
-    # Prepare FX
-    # -------------------------------
     example_inputs = next(iter(calibration_loader))[0][:1].to(device)
 
     print("Preparing FX quantization...")
-    prepared_model = prepare_fx(model, qconfig_dict, example_inputs)
+    prepared_model = prepare_fx(model, qconfig_mapping, example_inputs)
 
-    # -------------------------------
-    # Calibration
-    # -------------------------------
     print("Running calibration...")
     with torch.no_grad():
         for images, _ in calibration_loader:
             images = images.to(device)
             prepared_model(images)
 
-    # -------------------------------
-    # Convert
-    # -------------------------------
     print("Converting to INT8...")
     quantized_model = convert_fx(prepared_model)
 
@@ -166,12 +149,14 @@ def main():
     print(f"CLE PTQ Accuracy: {acc*100:.2f}%")
 
     # -------------------------------
-    # Save model
+    # Save model (FIXED)
     # -------------------------------
-    model_dir = "results/Phase3_Results/checkpoints/MNV2"
+    model_dir = f"results/Phase3_Results/checkpoints/{args.model.upper()}"
     os.makedirs(model_dir, exist_ok=True)
 
-    save_path = os.path.join(model_dir, "mnv2_eurosat_fx_cle_ptq_int8.pth")
+    save_path = os.path.join(
+        model_dir, f"{args.model}_{args.dataset}_fx_cle_ptq_int8.pth"
+    )
 
     torch.save(quant_model.state_dict(), save_path)
 
@@ -187,12 +172,12 @@ def main():
     print(f"Latency: {latency:.2f} ms")
 
     # -------------------------------
-    # Logging
+    # Logging (FIXED)
     # -------------------------------
     log_dir = "results/Phase3_Results/logs"
     os.makedirs(log_dir, exist_ok=True)
 
-    log_file = os.path.join(log_dir, "fx_cle_ptq_results.csv")
+    log_file = os.path.join(log_dir, "fx_ptq_results.csv")
 
     with open(log_file, "a") as f:
         f.write(
