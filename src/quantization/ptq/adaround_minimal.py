@@ -115,9 +115,11 @@ def apply_adaround(model, calibration_loader, device, num_bits=8):
             print(f"\nProcessing layer: {name}")
 
             # get one batch
-            for images, _ in calibration_loader:
-                images = images.to(device)
-                break
+            images, _ = next(iter(calibration_loader))
+            images = images.to(device)
+
+            with torch.no_grad():
+                model(images)
 
             # forward to get input to this layer
             def get_input_hook(module, inp, out):
@@ -133,6 +135,7 @@ def apply_adaround(model, calibration_loader, device, num_bits=8):
 
             # optimize this layer
             optimize_layer(module, input_data, device, num_bits)
+            torch.cuda.empty_cache()
 
     print("\nAdaRound complete.\n")
 

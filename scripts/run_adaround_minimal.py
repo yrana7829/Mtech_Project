@@ -51,9 +51,7 @@ def main():
 
     calib_dataset = Subset(train_dataset, indices)
 
-    calib_loader = DataLoader(
-        calib_dataset, batch_size=train_loader.batch_size, shuffle=False
-    )
+    calib_loader = DataLoader(calib_dataset, batch_size=16, shuffle=False)
 
     print(f"Calibration samples: {len(calib_dataset)}")
 
