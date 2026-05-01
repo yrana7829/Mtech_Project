@@ -118,18 +118,15 @@ def apply_adaround(model, calibration_loader, device, num_bits=8):
             images, _ = next(iter(calibration_loader))
             images = images.to(device)
 
-            with torch.no_grad():
-                model(images)
-
             # forward to get input to this layer
             def get_input_hook(module, inp, out):
                 module.input = inp[0]
 
             hook = module.register_forward_hook(get_input_hook)
 
-            model(images)
-
-            input_data = module.input.detach()
+            with torch.no_grad():
+                model(images)
+            input_data = module.input.detach().clone()
 
             hook.remove()
 
