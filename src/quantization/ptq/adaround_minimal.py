@@ -48,7 +48,7 @@ class AdaRoundLayer(nn.Module):
 # ----------------------------------------
 # Optimize one layer
 # ----------------------------------------
-def optimize_layer(module, input_data, device, num_bits=8, iters=500, lr=1e-2):
+def optimize_layer(module, input_data, device, num_bits=8, iters=300, lr=1e-2):
 
     print(f"Optimizing layer: {module}")
 
