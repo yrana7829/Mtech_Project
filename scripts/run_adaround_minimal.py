@@ -75,11 +75,13 @@ def main():
     # Step 1: AdaRound (optimize weights)
     model = apply_adaround(model, calib_loader, device)
 
-    # Step 2: FX quantization (real INT8)
-    quant_model = fx_quantize_model(model, calib_loader, device)
+    # Step 2: FX quantization (real INT8) -
+    # removed for now, since we are only interested in the effect of AdaRound
+    # on the weights. We can evaluate the model with soft rounding weights directly.
+    # quant_model = fx_quantize_model(model, calib_loader, device)
 
     # Step 3: Evaluate INT8 model
-    acc = evaluate(quant_model, val_loader, torch.device("cpu"))
+    acc = evaluate(model, val_loader, torch.device("cpu"))
 
     print(f"\nAdaRound Accuracy: {acc*100:.2f}%")
 
@@ -87,9 +89,11 @@ def main():
     save_dir = f"results/Phase3_Results/checkpoints/{args.model.upper()}"
     os.makedirs(save_dir, exist_ok=True)
 
-    save_path = os.path.join(save_dir, f"{args.model}_{args.dataset}_adaround_int8.pth")
+    save_path = os.path.join(
+        save_dir, f"{args.model}_{args.dataset}_adaround_w8a32.pth"
+    )
 
-    torch.save(quant_model.state_dict(), save_path)
+    torch.save(model.state_dict(), save_path)
 
     print(f"Saved model to: {save_path}")
 
@@ -98,7 +102,7 @@ def main():
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
     with open(log_file, "a") as f:
-        f.write(f"{args.dataset},{args.model},AdaRound,{acc*100:.2f}\n")
+        f.write(f"{args.dataset},{args.model},AdaRound_W8A32,{acc*100:.2f}\n")
 
 
 if __name__ == "__main__":

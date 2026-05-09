@@ -39,10 +39,18 @@ class AdaRoundLayer(nn.Module):
         # alpha (learnable)
         self.alpha = nn.Parameter(torch.zeros_like(weight))
 
-    def forward(self):
-        # soft rounding
-        h = torch.sigmoid(self.alpha)
+    def forward(self, hard=False):
+
+        if hard:
+            h = (self.alpha >= 0).float()
+        else:
+            h = torch.sigmoid(self.alpha)
+
         w_q = self.w_floor + h
+
+        if hard:
+            w_q = torch.clamp(w_q, -self.qmax, self.qmax)
+
         return w_q * self.scale
 
 
@@ -71,7 +79,7 @@ def optimize_layer(module, input_data, device, num_bits=8, iters=300, lr=1e-2):
         optimizer.zero_grad()
 
         # quantized weight
-        w_q = adaround_layer()
+        w_q = adaround_layer(hard=False)
 
         # forward with quantized weight
         out_q = F.conv2d(
