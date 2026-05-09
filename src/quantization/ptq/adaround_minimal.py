@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # additional imports for FX implimentation
-from torch.ao.quantization import get_default_qconfig, QConfigMapping
+from torch.ao.quantization import MinMaxObserver, get_default_qconfig, QConfigMapping
 from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
+from torch.ao.quantization import QConfig
+from torch.ao.quantization.observer import MinMaxObserver
 
 
 # ----------------------------------------
@@ -149,7 +151,11 @@ def fx_quantize_model(model, calibration_loader, device):
     model.eval()
     model.to(device)
 
-    qconfig = get_default_qconfig("fbgemm")
+    qconfig = QConfig(
+        activation=MinMaxObserver.with_args(dtype=torch.quint8),
+        weight=MinMaxObserver.with_args(dtype=torch.qint8),
+    )
+
     qconfig_mapping = QConfigMapping().set_global(qconfig)
 
     # example input
