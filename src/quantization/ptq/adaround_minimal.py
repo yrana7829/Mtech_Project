@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# additional imports for FX implimentation
+from torch.ao.quantization import get_default_qconfig, QConfigMapping
+from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
+
 
 # ----------------------------------------
 # Quantizer (symmetric)
@@ -137,3 +141,30 @@ def apply_adaround(model, calibration_loader, device, num_bits=8):
     print("\nAdaRound complete.\n")
 
     return model
+
+
+# Modified FX funtion
+def fx_quantize_model(model, calibration_loader, device):
+
+    model.eval()
+    model.to(device)
+
+    qconfig = get_default_qconfig("fbgemm")
+    qconfig_mapping = QConfigMapping().set_global(qconfig)
+
+    # example input
+    example_inputs = next(iter(calibration_loader))[0][:1].to(device)
+
+    print("\nPreparing FX quantization...")
+    prepared_model = prepare_fx(model, qconfig_mapping, example_inputs)
+
+    print("Running calibration...")
+    with torch.no_grad():
+        for images, _ in calibration_loader:
+            images = images.to(device)
+            prepared_model(images)
+
+    print("Converting to INT8...")
+    quantized_model = convert_fx(prepared_model)
+
+    return quantized_model

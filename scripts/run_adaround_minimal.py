@@ -1,5 +1,6 @@
 import sys
 import os
+from xml.parsers.expat import model
 import torch
 import argparse
 import numpy as np
@@ -8,10 +9,11 @@ from torch.utils.data import Subset, DataLoader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from quantization import quant_model
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
-from src.quantization.ptq.adaround_minimal import apply_adaround
+from src.quantization.ptq.adaround_minimal import apply_adaround, fx_quantize_model
 
 
 # -------------------------------
@@ -71,11 +73,18 @@ def main():
 
     # AdaRound
     print("\nApplying AdaRound...")
+    # Step 1: AdaRound (optimize weights)
     model = apply_adaround(model, calib_loader, device)
 
-    # Evaluate
-    print("\nEvaluating AdaRound model...")
-    acc = evaluate(model, val_loader, device)
+    # Step 2: FX quantization (real INT8)
+    quant_model = fx_quantize_model(model, calib_loader, device)
+
+    # Step 3: Evaluate INT8 model
+    acc = evaluate(
+        quant_model,
+        val_loader,
+        torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"),
+    )
 
     print(f"\nAdaRound Accuracy: {acc*100:.2f}%")
 
@@ -85,7 +94,7 @@ def main():
 
     save_path = os.path.join(save_dir, f"{args.model}_{args.dataset}_adaround_int8.pth")
 
-    torch.save(model.state_dict(), save_path)
+    torch.save(quant_model.state_dict(), save_path)
 
     print(f"Saved model to: {save_path}")
 
