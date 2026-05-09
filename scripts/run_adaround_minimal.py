@@ -67,7 +67,7 @@ def main():
 
     # FP32 baseline
     print("\nEvaluating FP32 model...")
-    fp32_acc = evaluate(model, val_loader, device)
+    fp32_acc = evaluate(model, val_loader, torch.device("cpu"))
     print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
 
     # AdaRound
@@ -79,11 +79,7 @@ def main():
     quant_model = fx_quantize_model(model, calib_loader, device)
 
     # Step 3: Evaluate INT8 model
-    acc = evaluate(
-        quant_model,
-        val_loader,
-        torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu"),
-    )
+    acc = evaluate(quant_model, val_loader, torch.device("cpu"))
 
     print(f"\nAdaRound Accuracy: {acc*100:.2f}%")
 

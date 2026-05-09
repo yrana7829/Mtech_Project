@@ -40,14 +40,9 @@ class AdaRoundLayer(nn.Module):
         self.alpha = nn.Parameter(torch.zeros_like(weight))
 
     def forward(self):
-
         # soft rounding
         h = torch.sigmoid(self.alpha)
-
         w_q = self.w_floor + h
-
-        w_q = torch.clamp(w_q, -self.qmax, self.qmax)
-
         return w_q * self.scale
 
 
@@ -99,7 +94,8 @@ def optimize_layer(module, input_data, device, num_bits=8, iters=300, lr=1e-2):
             print(f"Iter {i+1}/{iters}, Loss: {loss.item():.6f}")
 
     # replace weight
-    module.weight.data = adaround_layer().detach()
+    with torch.no_grad():
+        module.weight.copy_(adaround_layer())
 
     return module
 
@@ -149,17 +145,14 @@ def apply_adaround(model, calibration_loader, device, num_bits=8):
 def fx_quantize_model(model, calibration_loader, device):
 
     model.eval()
-    model.to(device)
+    model = model.cpu()
+    torch.backends.quantized.engine = "fbgemm"
 
-    qconfig = QConfig(
-        activation=MinMaxObserver.with_args(dtype=torch.quint8),
-        weight=MinMaxObserver.with_args(dtype=torch.qint8),
-    )
-
-    qconfig_mapping = QConfigMapping().set_global(qconfig)
+    qconfig_mapping = QConfigMapping().set_global(get_default_qconfig("fbgemm"))
 
     # example input
-    example_inputs = next(iter(calibration_loader))[0][:1].to(device)
+    # example_inputs = next(iter(calibration_loader))[0][:1].to(device)
+    example_inputs = next(iter(calibration_loader))[0][:1].cpu()
 
     print("\nPreparing FX quantization...")
     prepared_model = prepare_fx(model, qconfig_mapping, example_inputs)
@@ -167,7 +160,7 @@ def fx_quantize_model(model, calibration_loader, device):
     print("Running calibration...")
     with torch.no_grad():
         for images, _ in calibration_loader:
-            images = images.to(device)
+            images = images.cpu()
             prepared_model(images)
 
     print("Converting to INT8...")
