@@ -178,8 +178,12 @@ def fx_quantize_model(model, calibration_loader, device):
 
 
 # W32A8 quantization-adaround only for weights, activations are still FP32
-from torch.ao.quantization import QConfig
-from torch.ao.quantization.observer import MinMaxObserver
+from torch.ao.quantization import (
+    QConfig,
+    MinMaxObserver,
+    default_weight_observer,
+)
+from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
 from torch.ao.quantization.qconfig_mapping import QConfigMapping
 
 
@@ -190,29 +194,29 @@ def fx_quantize_activations_only(model, calibration_loader):
 
     torch.backends.quantized.engine = "fbgemm"
 
-    # Activation observer only
-    activation_qconfig = QConfig(
+    # Fake weight observer (required by FX)
+    activation_only_qconfig = QConfig(
         activation=MinMaxObserver.with_args(dtype=torch.quint8),
-        weight=None,
+        weight=default_weight_observer,
     )
 
-    qconfig_mapping = QConfigMapping()
-
-    # Apply only to activations
-    qconfig_mapping.set_global(activation_qconfig)
+    qconfig_mapping = QConfigMapping().set_global(activation_only_qconfig)
 
     # Example input
     example_inputs = next(iter(calibration_loader))[0][:1].cpu()
 
     print("\nPreparing activation-only quantization...")
+
     prepared_model = prepare_fx(model, qconfig_mapping, example_inputs)
 
     print("Running calibration...")
+
     with torch.no_grad():
         for images, _ in calibration_loader:
             prepared_model(images.cpu())
 
     print("Converting activation-quantized model...")
+
     quantized_model = convert_fx(prepared_model)
 
     return quantized_model
