@@ -12,7 +12,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
-from src.quantization.ptq.adaround_minimal import apply_adaround, fx_quantize_model
+from src.quantization.ptq.adaround_minimal import (
+    apply_adaround,
+    fx_quantize_model,
+    fx_quantize_activations_only,
+)
 
 
 # -------------------------------
@@ -71,9 +75,9 @@ def main():
     print(f"FP32 Accuracy: {fp32_acc*100:.2f}%")
 
     # AdaRound
-    print("\nApplying AdaRound...")
-    # Step 1: AdaRound (optimize weights)
-    model = apply_adaround(model, calib_loader, device)
+    # print("\nApplying AdaRound...")
+    # # Step 1: AdaRound (optimize weights)
+    # model = apply_adaround(model, calib_loader, device)
 
     # Step 2: FX quantization (real INT8) -
     # removed for now, since we are only interested in the effect of AdaRound
@@ -81,9 +85,17 @@ def main():
     # quant_model = fx_quantize_model(model, calib_loader, device)
 
     # Step 3: Evaluate INT8 model
-    acc = evaluate(model, val_loader, torch.device("cpu"))
+    # acc = evaluate(model, val_loader, torch.device("cpu"))
 
-    print(f"\nAdaRound Accuracy: {acc*100:.2f}%")
+    print("\nApplying activation-only quantization (W32A8)...")
+
+    w32a8_model = fx_quantize_activations_only(model, calib_loader)
+
+    w32a8_acc = evaluate(w32a8_model, val_loader, torch.device("cpu"))
+
+    print(f"W32A8 Accuracy: {w32a8_acc*100:.2f}%")
+
+    # print(f"\nAdaRound Accuracy: {acc*100:.2f}%")
 
     # Save
     save_dir = f"results/Phase3_Results/checkpoints/{args.model.upper()}"
