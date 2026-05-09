@@ -9,7 +9,6 @@ from torch.utils.data import Subset, DataLoader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from quantization import quant_model
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
