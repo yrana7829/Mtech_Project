@@ -114,7 +114,7 @@ def main():
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
     with open(log_file, "a") as f:
-        f.write(f"{args.dataset},{args.model},AdaRound_W8A32,{acc*100:.2f}\n")
+        f.write(f"{args.dataset},{args.model},AdaRound_W8A32,{w32a8_acc*100:.2f}\n")
 
 
 if __name__ == "__main__":
