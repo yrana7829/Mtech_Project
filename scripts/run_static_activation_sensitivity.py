@@ -28,25 +28,39 @@ np.random.seed(CALIB_SEED)
 random.seed(CALIB_SEED)
 
 
-def get_target_blocks(model_name, model):
+# def get_target_blocks(model_name, model):
 
-    target_blocks = []
+#     target_blocks = []
 
-    if model_name.lower() == "mobilenetv2":
+#     if model_name.lower() == "mobilenetv2":
 
-        for name, module in model.named_modules():
+#         for name, module in model.named_modules():
 
-            if "features." in name and name.count(".") == 1:
-                target_blocks.append(name)
+#             if "features." in name and name.count(".") == 1:
+#                 target_blocks.append(name)
 
-    elif model_name.lower() == "resnet18":
+#     elif model_name.lower() == "resnet18":
 
-        for name, module in model.named_modules():
+#         for name, module in model.named_modules():
 
-            if "layer" in name and name.count(".") == 1:
-                target_blocks.append(name)
+#             if "layer" in name and name.count(".") == 1:
+#                 target_blocks.append(name)
 
-    return target_blocks
+
+#     return target_blocks
+# modified for operator level analysis
+def get_target_operators(model):
+
+    target_ops = []
+
+    for name, module in model.named_modules():
+
+        # Quantize operator outputs
+        if isinstance(module, (torch.nn.Conv2d, torch.nn.ReLU, torch.nn.ReLU6)):
+
+            target_ops.append(name)
+
+    return target_ops
 
 
 def main():
@@ -112,7 +126,7 @@ def main():
     # -----------------------------------
     # Target blocks
     # -----------------------------------
-    target_blocks = get_target_blocks(args.model, model)
+    target_blocks = get_target_operators(model)
 
     print("\n[INFO] Target Blocks:")
 
