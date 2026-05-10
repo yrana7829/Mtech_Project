@@ -46,7 +46,6 @@ def main(args):
     model = get_model(
         model_name=args.model,
         num_classes=args.num_classes,
-        checkpoint_path=args.checkpoint,
     )
 
     model.to(device)
