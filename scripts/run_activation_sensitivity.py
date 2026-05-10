@@ -1,14 +1,17 @@
-import os
 import argparse
-import pandas as pd
-import torch
+import os
 import sys
 
+import pandas as pd
+import torch
+
+# Add project root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
+
 from src.quantization.sensitivity.activation_sensitivity import (
     ActivationSensitivityAnalyzer,
 )
@@ -22,7 +25,6 @@ def get_target_blocks(model_name, model):
 
         for name, module in model.named_modules():
 
-            # Inverted residual blocks
             if "features." in name and name.count(".") == 1:
                 target_blocks.append(name)
 
@@ -36,49 +38,68 @@ def get_target_blocks(model_name, model):
     return target_blocks
 
 
-def main(args):
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--model", type=str, required=True)
+    parser.add_argument("--checkpoint", type=str, required=True)
+
+    args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # -------------------------
-    # Load model
-    # -------------------------
-    model = get_model(
-        model_name=args.model,
-        num_classes=args.num_classes,
-    )
+    # -----------------------------------
+    # Load dataset
+    # -----------------------------------
+    print("Loading dataset...")
+    train_loader, _, test_loader = get_dataset(args.dataset)
 
-    model.to(device)
+    # -----------------------------------
+    # Load model
+    # -----------------------------------
+    print("Loading model...")
+    model = get_model(args.model, num_classes=10)
+
+    # -----------------------------------
+    # Load checkpoint
+    # -----------------------------------
+    print("Loading checkpoint...")
+
+    state_dict = torch.load(args.checkpoint, map_location=device)
+
+    model.load_state_dict(state_dict)
+
+    model = model.to(device)
     model.eval()
 
-    # -------------------------
-    # Load dataset
-    # -------------------------
-    _, _, test_loader = get_dataset(
-        dataset_name=args.dataset, batch_size=args.batch_size
-    )
+    # -----------------------------------
+    # Baseline evaluation
+    # -----------------------------------
+    print("\nEvaluating FP32 model...")
 
-    # -------------------------
-    # Baseline accuracy
-    # -------------------------
     baseline_acc = evaluate(model, test_loader, device)
 
-    print(f"\n[BASELINE FP32 ACC]: {baseline_acc:.2f}%")
+    baseline_acc = baseline_acc * 100
 
-    # -------------------------
-    # Target blocks
-    # -------------------------
+    print(f"[BASELINE FP32 ACC]: {baseline_acc:.2f}%")
+
+    # -----------------------------------
+    # Get target blocks
+    # -----------------------------------
     target_blocks = get_target_blocks(args.model, model)
 
     print("\n[INFO] Target Blocks:")
+
     for block in target_blocks:
         print(block)
 
     results = []
 
-    # -------------------------
-    # Sensitivity loop
-    # -------------------------
+    # -----------------------------------
+    # Sensitivity analysis
+    # -----------------------------------
     for block_name in target_blocks:
 
         print(f"\n[RUNNING] Quantizing activations for block: {block_name}")
@@ -90,6 +111,8 @@ def main(args):
         analyzer.register_hooks()
 
         quant_acc = evaluate(model, test_loader, device)
+
+        quant_acc = quant_acc * 100
 
         analyzer.remove_hooks()
 
@@ -107,13 +130,15 @@ def main(args):
             }
         )
 
-    # -------------------------
+    # -----------------------------------
     # Save results
-    # -------------------------
-    os.makedirs(args.output_dir, exist_ok=True)
+    # -----------------------------------
+    output_dir = "results/Phase4_ActivationSensitivity"
+
+    os.makedirs(output_dir, exist_ok=True)
 
     save_path = os.path.join(
-        args.output_dir, f"{args.model}_{args.dataset}_activation_sensitivity.csv"
+        output_dir, f"{args.model}_{args.dataset}_activation_sensitivity.csv"
     )
 
     df = pd.DataFrame(results)
@@ -124,22 +149,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--model", type=str, required=True)
-
-    parser.add_argument("--checkpoint", type=str, required=True)
-
-    parser.add_argument("--num_classes", type=int, required=True)
-
-    parser.add_argument("--batch_size", type=int, default=32)
-
-    parser.add_argument(
-        "--output_dir", type=str, default="results/Phase4_ActivationSensitivity/"
-    )
-
-    args = parser.parse_args()
-
-    main(args)
+    main()
