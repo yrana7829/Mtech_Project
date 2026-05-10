@@ -3,9 +3,9 @@ import argparse
 import pandas as pd
 import torch
 
-from src.models.model_loader import load_model
-from src.dataset.dataloader import get_dataloaders
-from src.evaluation.evaluate import evaluate_model
+from src.models.model_loader import get_model
+from src.dataset.dataloader import get_dataset
+from src.evaluation.evaluate import evaluate
 
 from src.quantization.sensitivity.activation_sensitivity import (
     ActivationSensitivityAnalyzer,
@@ -41,7 +41,7 @@ def main(args):
     # -------------------------
     # Load model
     # -------------------------
-    model = load_model(
+    model = get_model(
         model_name=args.model,
         num_classes=args.num_classes,
         checkpoint_path=args.checkpoint,
@@ -53,14 +53,14 @@ def main(args):
     # -------------------------
     # Load dataset
     # -------------------------
-    _, _, test_loader = get_dataloaders(
+    _, _, test_loader = get_dataset(
         dataset_name=args.dataset, batch_size=args.batch_size
     )
 
     # -------------------------
     # Baseline accuracy
     # -------------------------
-    baseline_acc = evaluate_model(model, test_loader, device)
+    baseline_acc = evaluate(model, test_loader, device)
 
     print(f"\n[BASELINE FP32 ACC]: {baseline_acc:.2f}%")
 
@@ -88,7 +88,7 @@ def main(args):
 
         analyzer.register_hooks()
 
-        quant_acc = evaluate_model(model, test_loader, device)
+        quant_acc = evaluate(model, test_loader, device)
 
         analyzer.remove_hooks()
 
