@@ -69,9 +69,10 @@ def collect_activation_ranges(model, calibration_loader):
 
     for name, module in model.named_modules():
 
-        if isinstance(module, (nn.Conv2d, nn.Linear, nn.ReLU, nn.ReLU6)):
-
-            hooks.append(module.register_forward_hook(register_hook(name)))
+        # skip root module
+        if name == "":
+            continue
+        hooks.append(module.register_forward_hook(register_hook(name)))
 
     model.eval()
 
