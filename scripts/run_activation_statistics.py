@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+from matplotlib.pylab import indices
 import torch
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -85,16 +86,48 @@ def main():
     # ---------------------------------
     # Forward pass
     # ---------------------------------
+    # print("\nCollecting activations...")
+
+    # with torch.no_grad():
+
+    #     for batch_idx, (images, _) in enumerate(train_loader):
+
+    #         model(images.cpu())
+
+    #         if batch_idx >= NUM_BATCHES:
+    #             break
+
+    from torch.utils.data import Subset, DataLoader
+
+    # ---------------------------------
+    # Small subset for stats
+    # ---------------------------------
+    print("\nCreating activation-statistics subset...")
+
+    train_dataset = train_loader.dataset
+
+    num_samples = 200
+
+    indices = torch.randperm(len(train_dataset))[:num_samples]
+
+    subset_dataset = Subset(train_dataset, indices)
+
+    subset_loader = DataLoader(
+        subset_dataset, batch_size=16, shuffle=False, num_workers=2
+    )
+
+    print(f"Subset samples: {len(subset_dataset)}")
+
+    # ---------------------------------
+    # Collect activations
+    # ---------------------------------
     print("\nCollecting activations...")
 
     with torch.no_grad():
 
-        for batch_idx, (images, _) in enumerate(train_loader):
+        for images, _ in subset_loader:
 
             model(images.cpu())
-
-            if batch_idx >= NUM_BATCHES:
-                break
 
     collector.remove_hooks()
 
