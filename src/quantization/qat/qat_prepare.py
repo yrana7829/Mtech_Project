@@ -1,43 +1,43 @@
 import copy
 import torch
+import torchvision
 from torch.ao.quantization import get_default_qat_qconfig, prepare_qat
 
 
-def prepare_mobilenetv2_qat(model):
-
-    model = copy.deepcopy(model)
+def prepare_mobilenetv2_qat(fp32_model):
 
     torch.backends.quantized.engine = "fbgemm"
 
-    model.train()
+    num_classes = fp32_model.classifier[1].out_features
 
-    # attach fuse_model dynamically
-    model.fuse_model = lambda: torch.quantization.fuse_modules(model, [], inplace=True)
+    # Official quantizable MobileNetV2
+    qat_model = torchvision.models.quantization.mobilenet_v2(
+        weights=None, quantize=False
+    )
 
-    # Fuse MobileNetV2 blocks
-    for module_name, module in model.named_modules():
+    # Replace classifier
+    qat_model.classifier[1] = torch.nn.Linear(
+        qat_model.classifier[1].in_features, num_classes
+    )
 
-        # Conv-BN-ReLU blocks
-        if hasattr(module, "0") and hasattr(module, "1"):
+    # IMPORTANT:
+    # strict=False because quantizable
+    # MobileNetV2 has extra wrapper modules
+    missing, unexpected = qat_model.load_state_dict(
+        fp32_model.state_dict(), strict=False
+    )
 
-            if isinstance(getattr(module, "0"), torch.nn.Conv2d) and isinstance(
-                getattr(module, "1"), torch.nn.BatchNorm2d
-            ):
+    print(f"Missing keys: {len(missing)} | " f"Unexpected keys: {len(unexpected)}")
 
-                if hasattr(module, "2"):
+    qat_model.train()
 
-                    if isinstance(getattr(module, "2"), torch.nn.ReLU6):
+    # Proper fusion
+    qat_model.fuse_model(is_qat=True)
 
-                        torch.quantization.fuse_modules(
-                            module, ["0", "1", "2"], inplace=True
-                        )
+    # QAT config
+    qat_model.qconfig = get_default_qat_qconfig("fbgemm")
 
-                else:
-
-                    torch.quantization.fuse_modules(module, ["0", "1"], inplace=True)
-
-    model.qconfig = get_default_qat_qconfig("fbgemm")
-
-    qat_model = prepare_qat(model, inplace=False)
+    # Insert fake quant
+    qat_model = prepare_qat(qat_model, inplace=False)
 
     return qat_model
