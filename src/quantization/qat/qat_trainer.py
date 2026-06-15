@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 class QATTrainer:
 
-    def __init__(self, model, train_loader, val_loader, device, lr=1e-4):
+    def __init__(self, model, train_loader, val_loader, device, lr=1e-5):
 
         self.model = model.to(device)
 
@@ -81,7 +81,7 @@ class QATTrainer:
 
         return correct / total
 
-    def train(self, epochs=10, save_path="results/checkpoints/qat_model.pth"):
+    def train(self, epochs=15, save_path="results/checkpoints/qat_model.pth"):
 
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
@@ -90,12 +90,12 @@ class QATTrainer:
         for epoch in range(epochs):
 
             # Freeze BN stats
-            if epoch == 3:
+            if epoch == 7:
                 self.model.apply(torch.nn.intrinsic.qat.freeze_bn_stats)
                 print("BatchNorm frozen")
 
             # Freeze observers
-            if epoch == 5:
+            if epoch == 8:
                 self.model.apply(torch.ao.quantization.disable_observer)
                 print("Observers frozen")
 
