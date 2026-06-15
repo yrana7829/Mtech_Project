@@ -1,38 +1,43 @@
 import copy
 import torch
-import torchvision
+from torch.ao.quantization import get_default_qat_qconfig, prepare_qat
 
 
 def prepare_mobilenetv2_qat(model):
 
     model = copy.deepcopy(model)
 
-    model.train()
-
-    # backend
     torch.backends.quantized.engine = "fbgemm"
 
-    # fuse Conv+BN+ReLU
-    model_fused = torchvision.models.quantization.mobilenet_v2(
-        weights=None, quantize=False
-    )
+    model.train()
 
-    # replace classifier
-    num_classes = model.classifier[1].out_features
-    model_fused.classifier[1] = torch.nn.Linear(
-        model_fused.classifier[1].in_features, num_classes
-    )
+    # attach fuse_model dynamically
+    model.fuse_model = lambda: torch.quantization.fuse_modules(model, [], inplace=True)
 
-    # load FP32 weights
-    model_fused.load_state_dict(model.state_dict())
+    # Fuse MobileNetV2 blocks
+    for module_name, module in model.named_modules():
 
-    # fuse internally
-    model_fused.fuse_model(is_qat=True)
+        # Conv-BN-ReLU blocks
+        if hasattr(module, "0") and hasattr(module, "1"):
 
-    # QAT config
-    model_fused.qconfig = torch.ao.quantization.get_default_qat_qconfig("fbgemm")
+            if isinstance(getattr(module, "0"), torch.nn.Conv2d) and isinstance(
+                getattr(module, "1"), torch.nn.BatchNorm2d
+            ):
 
-    # prepare QAT
-    qat_model = torch.ao.quantization.prepare_qat(model_fused, inplace=False)
+                if hasattr(module, "2"):
+
+                    if isinstance(getattr(module, "2"), torch.nn.ReLU6):
+
+                        torch.quantization.fuse_modules(
+                            module, ["0", "1", "2"], inplace=True
+                        )
+
+                else:
+
+                    torch.quantization.fuse_modules(module, ["0", "1"], inplace=True)
+
+    model.qconfig = get_default_qat_qconfig("fbgemm")
+
+    qat_model = prepare_qat(model, inplace=False)
 
     return qat_model
