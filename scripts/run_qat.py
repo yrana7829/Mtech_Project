@@ -33,10 +33,18 @@ def main(args):
     checkpoint = torch.load(args.checkpoint, map_location=device)
 
     model.load_state_dict(checkpoint)
+    fp32_acc = evaluate(model, test_loader, device)
+    print("FP32 accuracy:", fp32_acc)
 
     print("Preparing QAT model...")
 
     qat_model = prepare_mobilenetv2_qat(model)
+    print(f"The prepared QAT model is : {qat_model}")
+    print("Evaluating QAT-prepared model...")
+
+    qat_model.eval()
+    qat_prepared_acc = evaluate(qat_model, test_loader, device)
+    print(f"QAT Prepared Accuracy = {qat_prepared_acc:.4f}")
 
     trainer = QATTrainer(
         model=qat_model,
