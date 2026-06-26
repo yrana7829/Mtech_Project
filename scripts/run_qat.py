@@ -40,6 +40,11 @@ def main(args):
     print("Preparing QAT model...")
 
     qat_model = prepare_mobilenetv2_qat(model)
+    acc1 = evaluate(qat_model, test_loader, device)
+    acc2 = evaluate(qat_model, test_loader, device)
+
+    print("QAT ACC #1:", acc1)
+    print("QAT ACC #2:", acc2)
 
     print("\n===== QAT DIAGNOSTICS =====")
 
