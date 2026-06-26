@@ -1,4 +1,5 @@
 import argparse
+from xml.parsers.expat import model
 import torch
 import os
 import sys
@@ -36,15 +37,48 @@ def main(args):
     fp32_acc = evaluate(model, test_loader, device)
     print("FP32 accuracy:", fp32_acc)
 
+    # print("Preparing QAT model...")
+
+    # qat_model = prepare_mobilenetv2_qat(model)
+    # print(f"The prepared QAT model is : {qat_model}")
+    # print("Evaluating QAT-prepared model...")
+
+    # qat_model.eval()
+    # qat_prepared_acc = evaluate(qat_model, test_loader, device)
+    # print(f"QAT Prepared Accuracy = {qat_prepared_acc:.4f}")
+
     print("Preparing QAT model...")
 
     qat_model = prepare_mobilenetv2_qat(model)
-    print(f"The prepared QAT model is : {qat_model}")
-    print("Evaluating QAT-prepared model...")
+
+    print("\n===== QAT DIAGNOSTICS =====")
+
+    # --------------------------------------------------
+    # EVAL MODE
+    # --------------------------------------------------
 
     qat_model.eval()
-    qat_prepared_acc = evaluate(qat_model, test_loader, device)
-    print(f"QAT Prepared Accuracy = {qat_prepared_acc:.4f}")
+
+    qat_eval_acc = evaluate(qat_model, test_loader, device)
+
+    print(f"QAT Prepared (eval mode) Accuracy = " f"{qat_eval_acc:.4f}")
+
+    # --------------------------------------------------
+    # TRAIN MODE
+    # --------------------------------------------------
+
+    qat_model.train()
+
+    qat_train_acc = evaluate(qat_model, test_loader, device)
+
+    print(f"QAT Prepared (train mode) Accuracy = " f"{qat_train_acc:.4f}")
+
+    print("===== END DIAGNOSTICS =====\n")
+
+    # IMPORTANT:
+    # switch back to train mode before QAT training
+
+    qat_model.train()
 
     trainer = QATTrainer(
         model=qat_model,
