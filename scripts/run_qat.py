@@ -2,6 +2,7 @@ import argparse
 import torch
 import os
 import sys
+from src.training.seed import set_seed
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -27,7 +28,9 @@ from src.quantization.qat.qat_convert import (
 def main(args):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    set_seed(args.seed)
 
+    print(f"Using seed: {args.seed}")
     print("Loading dataset...")
 
     train_loader, val_loader, test_loader = get_dataset(args.dataset)
@@ -159,6 +162,12 @@ if __name__ == "__main__":
         "--quant_save_path",
         type=str,
         default=("quantized_models/" "mobilenetv2_qat_int8.pth"),
+    )
+
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
     )
 
     args = parser.parse_args()
