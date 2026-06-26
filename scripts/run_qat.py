@@ -37,16 +37,6 @@ def main(args):
     fp32_acc = evaluate(model, test_loader, device)
     print("FP32 accuracy:", fp32_acc)
 
-    # print("Preparing QAT model...")
-
-    # qat_model = prepare_mobilenetv2_qat(model)
-    # print(f"The prepared QAT model is : {qat_model}")
-    # print("Evaluating QAT-prepared model...")
-
-    # qat_model.eval()
-    # qat_prepared_acc = evaluate(qat_model, test_loader, device)
-    # print(f"QAT Prepared Accuracy = {qat_prepared_acc:.4f}")
-
     print("Preparing QAT model...")
 
     qat_model = prepare_mobilenetv2_qat(model)
@@ -96,9 +86,9 @@ def main(args):
 
     trainer.train(epochs=args.epochs, save_path=args.qat_checkpoint)
 
-    print("Loading best QAT model...")
+    # print("Loading best QAT model...")
 
-    qat_model.load_state_dict(torch.load(args.qat_checkpoint, map_location=device))
+    # qat_model.load_state_dict(torch.load(args.qat_checkpoint, map_location=device))
 
     print("Converting to INT8...")
 
