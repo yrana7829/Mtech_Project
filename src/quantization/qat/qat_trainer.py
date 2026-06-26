@@ -15,9 +15,10 @@ class QATTrainer:
 
         self.criterion = torch.nn.CrossEntropyLoss()
 
-        self.optimizer = torch.optim.SGD(
-            self.model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-4
-        )
+        # self.optimizer = torch.optim.SGD(
+        #     self.model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-4
+        # )
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-6)
 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimizer, T_max=10
