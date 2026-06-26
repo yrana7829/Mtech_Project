@@ -59,9 +59,13 @@ def main(args):
 
     qat_model.eval()
 
-    qat_eval_acc = evaluate(qat_model, test_loader, device)
+    qat_val_acc = evaluate(qat_model, val_loader, device)
 
-    print(f"QAT Prepared (eval mode) Accuracy = " f"{qat_eval_acc:.4f}")
+    qat_test_acc = evaluate(qat_model, test_loader, device)
+
+    print(f"QAT Prepared VAL Accuracy = " f"{qat_val_acc:.4f}")
+
+    print(f"QAT Prepared TEST Accuracy = " f"{qat_test_acc:.4f}")
 
     # --------------------------------------------------
     # TRAIN MODE
@@ -69,9 +73,9 @@ def main(args):
 
     qat_model.train()
 
-    qat_train_acc = evaluate(qat_model, test_loader, device)
+    qat_train_mode_acc = evaluate(qat_model, test_loader, device)
 
-    print(f"QAT Prepared (train mode) Accuracy = " f"{qat_train_acc:.4f}")
+    print(f"QAT Prepared TRAIN-MODE Accuracy = " f"{qat_train_mode_acc:.4f}")
 
     print("===== END DIAGNOSTICS =====\n")
 
