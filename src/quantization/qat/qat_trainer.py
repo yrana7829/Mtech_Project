@@ -32,8 +32,6 @@ class QATTrainer:
         correct = 0
         total = 0
 
-        first_batch = True
-
         for images, labels in tqdm(self.train_loader):
 
             images = images.to(self.device)
@@ -42,32 +40,12 @@ class QATTrainer:
             self.optimizer.zero_grad()
 
             outputs = self.model(images)
-            if first_batch:
-                _, preds = torch.max(outputs, 1)
-
-                batch_acc = (preds == labels).float().mean().item()
-
-                print(f"FIRST BATCH ACC BEFORE UPDATE: " f"{batch_acc:.4f}")
 
             loss = self.criterion(outputs, labels)
 
             loss.backward()
 
             self.optimizer.step()
-
-            if first_batch:
-
-                with torch.no_grad():
-
-                    outputs_after = self.model(images)
-
-                    _, preds_after = torch.max(outputs_after, 1)
-
-                batch_acc_after = (preds_after == labels).float().mean().item()
-
-                print(f"FIRST BATCH ACC AFTER UPDATE: " f"{batch_acc_after:.4f}")
-
-            first_batch = False
 
             total_loss += loss.item()
 
