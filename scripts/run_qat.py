@@ -46,12 +46,15 @@ def main(args):
     # --------------------------------------------------
     # EVAL MODE
     # --------------------------------------------------
-
     qat_model.eval()
+
+    qat_train_loader_acc = evaluate(qat_model, train_loader, device)
 
     qat_val_acc = evaluate(qat_model, val_loader, device)
 
     qat_test_acc = evaluate(qat_model, test_loader, device)
+
+    print(f"QAT Prepared TRAIN-LOADER Accuracy = " f"{qat_train_loader_acc:.4f}")
 
     print(f"QAT Prepared VAL Accuracy = " f"{qat_val_acc:.4f}")
 
