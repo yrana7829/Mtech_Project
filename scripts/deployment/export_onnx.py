@@ -40,7 +40,7 @@ def export_model(args):
         do_constant_folding=True,
         input_names=["input"],
         output_names=["output"],
-        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+        dynamo=False,
     )
 
     print(f"ONNX model saved to: {args.output}")
