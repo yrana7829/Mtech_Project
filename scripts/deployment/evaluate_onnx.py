@@ -39,9 +39,8 @@ def evaluate_onnx(args):
 
     input_name = session.get_inputs()[0].name
 
-    # ----------------------------------
-    # Accuracy variables
-    # ----------------------------------
+    print("ONNX Input Shape:")
+    print(session.get_inputs()[0].shape)
 
     total = 0
 
@@ -52,10 +51,6 @@ def evaluate_onnx(args):
 
     max_diff_list = []
     mean_diff_list = []
-
-    # ----------------------------------
-    # Latency variables
-    # ----------------------------------
 
     pytorch_times = []
     onnx_times = []
@@ -68,66 +63,69 @@ def evaluate_onnx(args):
 
             batch_size = images.size(0)
 
-            # -------------------------
-            # PyTorch
-            # -------------------------
+            for i in range(batch_size):
 
-            start = time.perf_counter()
+                image = images[i : i + 1]
+                label = labels[i].item()
 
-            pytorch_output = model(images)
+                # -------------------------
+                # PyTorch Inference
+                # -------------------------
 
-            pytorch_time = time.perf_counter() - start
+                start = time.perf_counter()
 
-            pytorch_times.append(pytorch_time / batch_size)
+                pytorch_output = model(image)
 
-            pytorch_output_np = pytorch_output.numpy()
+                pytorch_time = time.perf_counter() - start
 
-            pytorch_preds = np.argmax(pytorch_output_np, axis=1)
+                pytorch_times.append(pytorch_time)
 
-            # -------------------------
-            # ONNX
-            # -------------------------
+                pytorch_output_np = pytorch_output.numpy()
 
-            ort_inputs = {input_name: images.numpy().astype(np.float32)}
+                pytorch_pred = int(np.argmax(pytorch_output_np, axis=1)[0])
 
-            start = time.perf_counter()
+                # -------------------------
+                # ONNX Inference
+                # -------------------------
 
-            onnx_output = session.run(None, ort_inputs)[0]
+                ort_inputs = {input_name: image.numpy().astype(np.float32)}
 
-            onnx_time = time.perf_counter() - start
+                start = time.perf_counter()
 
-            onnx_times.append(onnx_time / batch_size)
+                onnx_output = session.run(None, ort_inputs)[0]
 
-            onnx_preds = np.argmax(onnx_output, axis=1)
+                onnx_time = time.perf_counter() - start
 
-            # -------------------------
-            # Accuracy
-            # -------------------------
+                onnx_times.append(onnx_time)
 
-            labels_np = labels.numpy()
+                onnx_pred = int(np.argmax(onnx_output, axis=1)[0])
 
-            pytorch_correct += np.sum(pytorch_preds == labels_np)
+                # -------------------------
+                # Accuracy
+                # -------------------------
 
-            onnx_correct += np.sum(onnx_preds == labels_np)
+                if pytorch_pred == label:
+                    pytorch_correct += 1
 
-            prediction_matches += np.sum(pytorch_preds == onnx_preds)
+                if onnx_pred == label:
+                    onnx_correct += 1
 
-            total += batch_size
+                if pytorch_pred == onnx_pred:
+                    prediction_matches += 1
 
-            # -------------------------
-            # Output differences
-            # -------------------------
+                total += 1
 
-            max_diff = np.max(np.abs(pytorch_output_np - onnx_output))
+                # -------------------------
+                # Output Difference
+                # -------------------------
 
-            mean_diff = np.mean(np.abs(pytorch_output_np - onnx_output))
+                max_diff = np.max(np.abs(pytorch_output_np - onnx_output))
 
-            max_diff_list.append(max_diff)
-            mean_diff_list.append(mean_diff)
+                mean_diff = np.mean(np.abs(pytorch_output_np - onnx_output))
 
-    # ----------------------------------
-    # Final Metrics
-    # ----------------------------------
+                max_diff_list.append(max_diff)
+
+                mean_diff_list.append(mean_diff)
 
     pytorch_acc = 100.0 * pytorch_correct / total
 
@@ -143,9 +141,15 @@ def evaluate_onnx(args):
 
     print("\n========== RESULTS ==========\n")
 
+    print(f"Total Images : {total}")
+
+    print()
+
     print(f"PyTorch Accuracy : " f"{pytorch_acc:.2f}%")
 
     print(f"ONNX Accuracy    : " f"{onnx_acc:.2f}%")
+
+    print()
 
     print(f"Prediction Agreement : " f"{agreement:.2f}%")
 
@@ -161,9 +165,9 @@ def evaluate_onnx(args):
 
     print()
 
-    print(f"Avg Max Difference : " f"{np.mean(max_diff_list):.6f}")
+    print(f"Average Max Difference : " f"{np.mean(max_diff_list):.6f}")
 
-    print(f"Avg Mean Difference : " f"{np.mean(mean_diff_list):.6f}")
+    print(f"Average Mean Difference : " f"{np.mean(mean_diff_list):.6f}")
 
     print("\n=============================\n")
 
