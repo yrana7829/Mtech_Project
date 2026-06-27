@@ -82,6 +82,19 @@ def main():
     print("Running PTQ...")
 
     quant_model = ptq_fx(model, calib_loader)
+    dummy = torch.randn(1, 3, 224, 224)
+
+    print("\nTrying ONNX export...")
+
+    torch.onnx.export(
+        quant_model,
+        dummy,
+        "results/onnx/mnv2_fx_ptq.onnx",
+        opset_version=13,
+        dynamo=False,
+    )
+
+    print("Export successful")
 
     print("\n========================")
     print("MODEL TYPE")
