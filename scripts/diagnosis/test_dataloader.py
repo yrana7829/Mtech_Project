@@ -2,9 +2,13 @@ import sys
 import os
 
 # add project root to python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
-from src.datasets.dataloader import get_dataset
+sys.path.insert(0, PROJECT_ROOT)
+
+from src.dataset.dataloader import get_dataset
+from src.models.model_loader import get_model
+from src.evaluation.evaluate import evaluate
 
 
 def main():
