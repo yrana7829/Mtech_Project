@@ -32,59 +32,120 @@ CALIB_SIZE = 1000
 CALIB_SEED = 42
 GLOBAL_SEED = 42
 
-torch.manual_seed(GLOBAL_SEED)
-np.random.seed(GLOBAL_SEED)
-random.seed(GLOBAL_SEED)
-
 torch.backends.quantized.engine = "fbgemm"
 
 
 # ============================================================
-# BUILD FIXED CALIBRATION LOADER
+# SET ALL RANDOM SEEDS
 # ============================================================
 
 
-def build_calibration_loader(train_loader):
+def set_all_seeds(seed):
 
-    train_dataset = train_loader.dataset
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+
+# ============================================================
+# CREATE FIXED CALIBRATION INDICES
+# ============================================================
+
+
+def create_fixed_calibration_indices(train_dataset):
 
     generator = torch.Generator()
+
     generator.manual_seed(CALIB_SEED)
 
     indices = torch.randperm(len(train_dataset), generator=generator)[:CALIB_SIZE]
 
-    calib_dataset = Subset(train_dataset, indices)
+    return indices
+
+
+# ============================================================
+# BUILD CALIBRATION LOADER
+# ============================================================
+
+
+def build_calibration_loader(train_dataset, fixed_indices, batch_size):
+
+    calib_dataset = Subset(train_dataset, fixed_indices)
 
     calib_loader = DataLoader(
-        calib_dataset, batch_size=train_loader.batch_size, shuffle=False, num_workers=0
+        calib_dataset, batch_size=batch_size, shuffle=False, num_workers=0
     )
 
     return calib_loader
 
 
 # ============================================================
-# BUILD NAIVE FX PTQ MODEL
+# BUILD DETERMINISTIC NAIVE FX PTQ MODEL
 # ============================================================
 
 
-def build_naive_ptq_model(model, calibration_loader):
+def build_naive_ptq_model(fp32_model, calibration_loader):
 
     device = torch.device("cpu")
 
-    model.eval()
-    model.to(device)
+    fp32_model.eval()
+    fp32_model.to(device)
+
+    # --------------------------------------------------------
+    # QUANTIZATION CONFIGURATION
+    # --------------------------------------------------------
 
     qconfig = get_default_qconfig("fbgemm")
 
     qconfig_dict = {"": qconfig}
 
+    # --------------------------------------------------------
+    # EXAMPLE INPUT
+    #
+    # This accesses the training dataset, which contains:
+    #
+    # RandomHorizontalFlip
+    # RandomRotation(10)
+    #
+    # Therefore this step consumes random state.
+    #
+    # That is acceptable because we reset every RNG
+    # immediately before actual calibration.
+    # --------------------------------------------------------
+
     example_inputs = next(iter(calibration_loader))[0][:1].to(device)
 
     print("\nPreparing FX PTQ model...")
 
-    prepared_model = prepare_fx(model, qconfig_dict, example_inputs)
+    prepared_model = prepare_fx(fp32_model, qconfig_dict, example_inputs)
 
-    print("Running calibration...")
+    # --------------------------------------------------------
+    # CRITICAL REPRODUCIBILITY STEP
+    #
+    # The calibration dataset uses random augmentation.
+    #
+    # Therefore reset all RNGs immediately before the
+    # actual calibration pass.
+    #
+    # Combined with:
+    #
+    # fixed image indices
+    # shuffle=False
+    # num_workers=0
+    #
+    # this reproduces the exact same calibration tensors
+    # across independent PTQ reconstructions.
+    # --------------------------------------------------------
+
+    print("\nResetting RNG state before calibration...")
+
+    set_all_seeds(CALIB_SEED)
+
+    # --------------------------------------------------------
+    # ACTUAL CALIBRATION
+    # --------------------------------------------------------
+
+    print("Running deterministic calibration...")
 
     with torch.no_grad():
 
@@ -93,6 +154,10 @@ def build_naive_ptq_model(model, calibration_loader):
             images = images.to(device)
 
             prepared_model(images)
+
+    # --------------------------------------------------------
+    # CONVERT TO REAL INT8 MODEL
+    # --------------------------------------------------------
 
     print("Converting to real INT8 model...")
 
@@ -134,6 +199,75 @@ def inspect_quantized_modules(model):
 
 
 # ============================================================
+# EXTRACT QUANTIZATION SIGNATURE
+# ============================================================
+
+
+def extract_quantization_signature(quantized_model):
+
+    signature = []
+
+    for name, module in quantized_model.named_modules():
+
+        scale = None
+        zero_point = None
+
+        # ----------------------------------------------------
+        # SCALE
+        # ----------------------------------------------------
+
+        if hasattr(module, "scale"):
+
+            try:
+
+                scale = module.scale
+
+                if torch.is_tensor(scale):
+
+                    scale = scale.detach().cpu().numpy().tolist()
+
+                else:
+
+                    scale = float(scale)
+
+            except Exception:
+
+                scale = str(module.scale)
+
+        # ----------------------------------------------------
+        # ZERO POINT
+        # ----------------------------------------------------
+
+        if hasattr(module, "zero_point"):
+
+            try:
+
+                zero_point = module.zero_point
+
+                if torch.is_tensor(zero_point):
+
+                    zero_point = zero_point.detach().cpu().numpy().tolist()
+
+                else:
+
+                    zero_point = int(zero_point)
+
+            except Exception:
+
+                zero_point = str(module.zero_point)
+
+        # ----------------------------------------------------
+        # RECORD QUANTIZED MODULE PARAMETERS
+        # ----------------------------------------------------
+
+        if scale is not None or zero_point is not None:
+
+            signature.append((name, scale, zero_point))
+
+    return signature
+
+
+# ============================================================
 # EXPORT TO ONNX
 # ============================================================
 
@@ -146,9 +280,20 @@ def export_to_onnx(model, output_path):
 
         os.makedirs(output_directory, exist_ok=True)
 
+    # --------------------------------------------------------
+    # FIX EXPORT INPUT SEED
+    #
+    # The dummy input does not affect calibration because
+    # quantization is already complete.
+    #
+    # We still fix the seed for complete reproducibility.
+    # --------------------------------------------------------
+
+    torch.manual_seed(GLOBAL_SEED)
+
     dummy_input = torch.randn(1, 3, 224, 224)
 
-    print("\nExporting quantized model to ONNX...")
+    print("\nExporting deterministic " "Naive FX PTQ model to ONNX...")
 
     torch.onnx.export(
         model,
@@ -209,7 +354,7 @@ def validate_onnx_structure(onnx_path):
 
 
 # ============================================================
-# PAIRED EXPORT FIDELITY COMPARISON
+# PAIRED PYTORCH PTQ VS EXPORTED ONNX COMPARISON
 # ============================================================
 
 
@@ -249,7 +394,7 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
     max_differences = []
     mean_differences = []
 
-    print("\nComparing exact PyTorch PTQ model " "with exported ONNX model...")
+    print("\nComparing exact deterministic " "PyTorch PTQ model with exported ONNX...")
 
     with torch.no_grad():
 
@@ -259,17 +404,17 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
             for i in range(batch_size):
 
-                # --------------------------------------------
-                # ONE IMAGE
-                # --------------------------------------------
+                # ============================================
+                # ONE TEST IMAGE
+                # ============================================
 
                 image = images[i : i + 1]
 
                 label = int(labels[i].item())
 
-                # --------------------------------------------
+                # ============================================
                 # EXACT PYTORCH PTQ MODEL
-                # --------------------------------------------
+                # ============================================
 
                 pytorch_output = quant_model(image)
 
@@ -277,9 +422,9 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
                 pytorch_pred = int(np.argmax(pytorch_output_np, axis=1)[0])
 
-                # --------------------------------------------
-                # EXPORTED ONNX MODEL
-                # --------------------------------------------
+                # ============================================
+                # EXACT EXPORTED ONNX MODEL
+                # ============================================
 
                 onnx_input = image.cpu().numpy().astype(np.float32)
 
@@ -287,9 +432,9 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
                 onnx_pred = int(np.argmax(onnx_output, axis=1)[0])
 
-                # --------------------------------------------
+                # ============================================
                 # ACCURACY
-                # --------------------------------------------
+                # ============================================
 
                 pytorch_is_correct = pytorch_pred == label
 
@@ -303,17 +448,17 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
                     onnx_correct += 1
 
-                # --------------------------------------------
+                # ============================================
                 # PREDICTION AGREEMENT
-                # --------------------------------------------
+                # ============================================
 
                 if pytorch_pred == onnx_pred:
 
                     prediction_matches += 1
 
-                # --------------------------------------------
-                # DIRECTION OF EXPORT-INDUCED CHANGES
-                # --------------------------------------------
+                # ============================================
+                # DIRECTION OF CHANGED DECISIONS
+                # ============================================
 
                 if pytorch_is_correct and not onnx_is_correct:
 
@@ -323,9 +468,9 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
                     pytorch_wrong_onnx_correct += 1
 
-                # --------------------------------------------
+                # ============================================
                 # NUMERICAL OUTPUT DIFFERENCE
-                # --------------------------------------------
+                # ============================================
 
                 absolute_difference = np.abs(pytorch_output_np - onnx_output)
 
@@ -348,6 +493,12 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
     agreement = 100.0 * prediction_matches / total
 
     changed_predictions = total - prediction_matches
+
+    average_mean_difference = float(np.mean(mean_differences))
+
+    average_max_difference = float(np.mean(max_differences))
+
+    worst_max_difference = float(np.max(max_differences))
 
     print("\n========================================")
 
@@ -379,11 +530,11 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
 
     print()
 
-    print(f"Average Mean Output Difference     : " f"{np.mean(mean_differences):.6f}")
+    print(f"Average Mean Output Difference     : " f"{average_mean_difference:.6f}")
 
-    print(f"Average Max Output Difference      : " f"{np.mean(max_differences):.6f}")
+    print(f"Average Max Output Difference      : " f"{average_max_difference:.6f}")
 
-    print(f"Worst Max Output Difference        : " f"{np.max(max_differences):.6f}")
+    print(f"Worst Max Output Difference        : " f"{worst_max_difference:.6f}")
 
     print("========================================")
 
@@ -396,9 +547,9 @@ def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
         "changed_predictions": changed_predictions,
         "pytorch_correct_onnx_wrong": pytorch_correct_onnx_wrong,
         "pytorch_wrong_onnx_correct": pytorch_wrong_onnx_correct,
-        "average_mean_difference": float(np.mean(mean_differences)),
-        "average_max_difference": float(np.mean(max_differences)),
-        "worst_max_difference": float(np.max(max_differences)),
+        "average_mean_difference": average_mean_difference,
+        "average_max_difference": average_max_difference,
+        "worst_max_difference": worst_max_difference,
     }
 
 
@@ -426,54 +577,92 @@ def main():
     device = torch.device("cpu")
 
     # ========================================================
-    # DATASET
+    # RESET GLOBAL STATE
+    # ========================================================
+
+    set_all_seeds(GLOBAL_SEED)
+
+    # ========================================================
+    # LOAD DATASET
     # ========================================================
 
     print("Loading dataset...")
 
     train_loader, val_loader, test_loader = get_dataset(args.dataset)
 
-    calibration_loader = build_calibration_loader(train_loader)
+    train_dataset = train_loader.dataset
+
+    # ========================================================
+    # FIX CALIBRATION INDICES
+    # ========================================================
+
+    fixed_indices = create_fixed_calibration_indices(train_dataset)
+
+    calibration_loader = build_calibration_loader(
+        train_dataset=train_dataset,
+        fixed_indices=fixed_indices,
+        batch_size=train_loader.batch_size,
+    )
+
+    print(f"Training samples: " f"{len(train_dataset)}")
 
     print(f"Calibration samples: " f"{len(calibration_loader.dataset)}")
+
+    print(f"Calibration seed: " f"{CALIB_SEED}")
 
     print(f"Test samples: " f"{len(test_loader.dataset)}")
 
     # ========================================================
-    # LOAD FP32 MODEL
+    # LOAD FRESH FP32 MODEL
     # ========================================================
 
     print("\nLoading FP32 model...")
 
-    model = get_model(args.model, num_classes=args.num_classes)
+    fp32_model = get_model(args.model, num_classes=args.num_classes)
 
     checkpoint = torch.load(args.checkpoint, map_location=device)
 
-    model.load_state_dict(checkpoint)
+    fp32_model.load_state_dict(checkpoint)
 
-    model.eval()
-
-    # ========================================================
-    # BUILD ACTUAL NAIVE FX PTQ MODEL
-    # ========================================================
-
-    quant_model = build_naive_ptq_model(model, calibration_loader)
+    fp32_model.eval()
 
     # ========================================================
-    # INSPECT QUANTIZED MODULES
+    # BUILD DETERMINISTIC NAIVE FX PTQ MODEL
+    # ========================================================
+
+    quant_model = build_naive_ptq_model(
+        fp32_model=fp32_model, calibration_loader=calibration_loader
+    )
+
+    # ========================================================
+    # INSPECT QUANTIZED MODEL
     # ========================================================
 
     quantized_module_count = inspect_quantized_modules(quant_model)
 
     # ========================================================
-    # EVALUATE PYTORCH PTQ MODEL
+    # RECORD QUANTIZATION SIGNATURE
     # ========================================================
 
-    print("\nEvaluating PyTorch FX PTQ " "on TEST SET...")
+    quantization_signature = extract_quantization_signature(quant_model)
+
+    print(f"\nQuantization Parameters Recorded: " f"{len(quantization_signature)}")
+
+    # ========================================================
+    # EVALUATE SOURCE PYTORCH PTQ MODEL
+    # ========================================================
+
+    print("\nEvaluating deterministic " "PyTorch FX PTQ model on TEST SET...")
 
     ptq_accuracy = evaluate(quant_model, test_loader, device)
 
-    print(f"\nPyTorch FX PTQ Test Accuracy: " f"{ptq_accuracy * 100:.2f}%")
+    ptq_accuracy_percent = ptq_accuracy * 100.0
+
+    print(
+        f"\nDeterministic PyTorch FX PTQ "
+        f"Test Accuracy: "
+        f"{ptq_accuracy_percent:.2f}%"
+    )
 
     # ========================================================
     # EXPORT EXACT MODEL JUST EVALUATED
@@ -482,7 +671,7 @@ def main():
     export_to_onnx(quant_model, args.output)
 
     # ========================================================
-    # CHECK ONNX STRUCTURE
+    # STRUCTURAL VALIDATION
     # ========================================================
 
     op_counts = validate_onnx_structure(args.output)
@@ -496,12 +685,11 @@ def main():
     print(f"\nONNX File Size: " f"{model_size_mb:.2f} MB")
 
     # ========================================================
-    # CRITICAL PAIRED COMPARISON
+    # PAIRED EXPORT FIDELITY TEST
     #
-    # Uses:
-    #   - exact quant_model still in memory
-    #   - exact ONNX file exported from that object
-    #   - exact same test_loader
+    # Exact source object
+    # vs
+    # Exact exported artifact
     # ========================================================
 
     fidelity_results = compare_pytorch_ptq_and_onnx(
@@ -509,12 +697,12 @@ def main():
     )
 
     # ========================================================
-    # FINAL PIPELINE SUMMARY
+    # FINAL SUMMARY
     # ========================================================
 
-    print("\n\n" "========================================")
+    print("\n\n========================================")
 
-    print("FINAL NAIVE PTQ EXPORT SUMMARY")
+    print("FINAL DETERMINISTIC NAIVE PTQ " "EXPORT SUMMARY")
 
     print("========================================")
 
@@ -526,13 +714,17 @@ def main():
 
     print(f"Calibration Samples       : " f"{len(calibration_loader.dataset)}")
 
+    print(f"Calibration Seed          : " f"{CALIB_SEED}")
+
     print(f"Test Samples              : " f"{len(test_loader.dataset)}")
 
     print(f"Quantized Modules         : " f"{quantized_module_count}")
 
+    print(f"Quantization Signatures   : " f"{len(quantization_signature)}")
+
     print()
 
-    print(f"Initial PyTorch PTQ Acc.  : " f"{ptq_accuracy * 100:.2f}%")
+    print(f"Source PyTorch PTQ Acc.   : " f"{ptq_accuracy_percent:.2f}%")
 
     print(
         f"Paired PyTorch PTQ Acc.   : " f"{fidelity_results['pytorch_accuracy']:.2f}%"
@@ -550,7 +742,15 @@ def main():
         f"{fidelity_results['prediction_agreement']:.2f}%"
     )
 
+    print(
+        f"Changed Predictions       : "
+        f"{fidelity_results['changed_predictions']} / "
+        f"{fidelity_results['total']}"
+    )
+
     print()
+
+    print(f"ONNX Nodes                : " f"{sum(op_counts.values())}")
 
     print(f"ONNX File Size            : " f"{model_size_mb:.2f} MB")
 
@@ -562,4 +762,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
