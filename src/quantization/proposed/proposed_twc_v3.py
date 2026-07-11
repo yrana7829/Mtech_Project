@@ -28,11 +28,11 @@ def get_layer_percentile(layer_name):
 
         # Middle bottlenecks
         elif idx <= 12:
-            return 99.90
+            return 99.95
 
         # Late bottlenecks
         else:
-            return 99.85
+            return 99.90
 
     # classifier
     return 99.90

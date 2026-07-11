@@ -5,8 +5,8 @@ from .proposed_twc_v3 import apply_proposed_twc_v3
 from .proposed_mpa_v3 import apply_proposed_mpa_v3
 
 USE_LPS = False
-USE_TWC = False
-USE_MPA = True
+USE_TWC = True
+USE_MPA = False
 
 
 def apply_proposed_ptq_pipeline_v3(
