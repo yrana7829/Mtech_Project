@@ -105,9 +105,9 @@ def main():
 
     fp32_acc = evaluate(model, test_loader, device)
 
-    ptqpp_model, allocation = apply_proposed_ptq_pipeline_v2(model)
+    ptqpp_model, allocation = apply_proposed_ptq_pipeline_v2(model, device)
 
-    ptqpp_fp32_acc = evaluate(ptqpp_model, test_loader)
+    ptqpp_fp32_acc = evaluate(ptqpp_model, test_loader, device)
 
     int8_model = build_fx_quantized_model(
         ptqpp_model,
