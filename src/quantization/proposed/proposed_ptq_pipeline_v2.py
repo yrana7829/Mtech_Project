@@ -37,7 +37,7 @@ def apply_proposed_ptq_pipeline_v2(model, device):
     # ----------------------------------------------------------
     # Stage 2
     # ----------------------------------------------------------
-    # model = apply_proposed_twc_v2(model)
+    model = apply_proposed_twc_v2(model)
 
     # ----------------------------------------------------------
     # Stage 3
