@@ -105,7 +105,7 @@ def main():
 
     fp32_acc = evaluate(model, test_loader, device)
 
-    ptqpp_model, allocation = apply_proposed_ptq_pipeline_v2(model, device)
+    ptqpp_model = apply_proposed_ptq_pipeline_v2(model, device)
 
     ptqpp_fp32_acc = evaluate(ptqpp_model, test_loader, device)
 
@@ -114,25 +114,11 @@ def main():
         calib_loader,
     )
 
-    int8_acc = evaluate(int8_model, test_loader)
-
-    print("\n==============================")
-    print("Layer Allocation Summary")
-    print("==============================")
-
-    if allocation is None:
-        print("No allocation information returned.")
-    else:
-        int8 = allocation.get("int8", [])
-        int6 = allocation.get("int6", [])
-
-        print("\nINT8 Layers")
-        for x in int8:
-            print("  ", x)
-
-        print("\nINT6 Recommended Layers")
-        for x in int6:
-            print("  ", x)
+    int8_acc = evaluate(
+        int8_model,
+        test_loader,
+        device,
+    )
 
     preprocess_loss = fp32_acc - ptqpp_fp32_acc
     quant_loss = ptqpp_fp32_acc - int8_acc
@@ -141,12 +127,13 @@ def main():
     print("\n==============================")
     print("Final Comparison")
     print("==============================")
-    print(f"{'FP32 Accuracy':35s}: {fp32_acc:.2f}%")
-    print(f"{'PTQ++ FP32 Accuracy':35s}: {ptqpp_fp32_acc:.2f}%")
-    print(f"{'PTQ++ INT8 Accuracy':35s}: {int8_acc:.2f}%")
-    print(f"{'Accuracy loss after preprocessing':35s}: {preprocess_loss:.2f}%")
-    print(f"{'Accuracy loss after FX quantization':35s}: {quant_loss:.2f}%")
-    print(f"{'Total loss from FP32':35s}: {total_loss:.2f}%")
+    print(f"{'FP32 Accuracy':35s}: {fp32_acc*100:.2f}%")
+
+    print(f"{'PTQ++ FP32 Accuracy':35s}: {ptqpp_fp32_acc*100:.2f}%")
+    print(f"{'PTQ++ INT8 Accuracy':35s}: {int8_acc*100:.2f}%")
+    print(f"{'Accuracy loss after preprocessing':35s}: {preprocess_loss*100:.2f} pp")
+    print(f"{'Accuracy loss after FX quantization':35s}: {quant_loss*100:.2f} pp")
+    print(f"{'Total loss from FP32':35s}: {total_loss*100:.2f} pp")
 
 
 if __name__ == "__main__":
