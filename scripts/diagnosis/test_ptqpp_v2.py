@@ -68,24 +68,38 @@ def build_fx_quantized_model(model, calibration_loader):
 def main():
     set_seed()
 
-    train_dataset, test_dataset = get_dataset()
+    print("Loading dataset...")
 
-    rng = np.random.default_rng(SEED)
-    indices = rng.permutation(len(train_dataset))[:CALIBRATION_SAMPLES]
+    train_loader, _, test_loader = get_dataset("eurosat")
+
+    train_dataset = train_loader.dataset
+
+    torch.manual_seed(SEED)
+
+    indices = torch.randperm(len(train_dataset))[:CALIBRATION_SAMPLES]
+
+    calib_dataset = Subset(train_dataset, indices)
 
     calib_loader = DataLoader(
-        Subset(train_dataset, indices),
-        batch_size=32,
+        calib_dataset,
+        batch_size=train_loader.batch_size,
         shuffle=False,
+        num_workers=0,
     )
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=32,
-        shuffle=False,
+    model = get_model(
+        "mobilenetv2",
+        num_classes=10,
+    )
+    checkpoint = "results/checkpoints/eurosat_mobilenetv2_fp32.pth"
+
+    state_dict = torch.load(
+        checkpoint,
+        map_location="cpu",
     )
 
-    model = get_model()
+    model.load_state_dict(state_dict)
+
     model.eval()
 
     fp32_acc = evaluate(model, test_loader)
