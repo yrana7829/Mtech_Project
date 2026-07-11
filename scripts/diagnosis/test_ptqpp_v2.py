@@ -103,7 +103,7 @@ def main():
 
     model.eval()
 
-    fp32_acc = evaluate(model, test_loader, device
+    fp32_acc = evaluate(model, test_loader, device)
 
     ptqpp_model, allocation = apply_proposed_ptq_pipeline_v2(model)
 
