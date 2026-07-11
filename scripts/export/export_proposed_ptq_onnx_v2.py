@@ -61,9 +61,12 @@ def export_to_onnx(model, output_path):
         model,
         dummy,
         output_path,
+        opset_version=18,
+        export_params=True,
+        do_constant_folding=True,
         input_names=["input"],
         output_names=["output"],
-        opset_version=18,
+        dynamo=False,
     )
 
 
