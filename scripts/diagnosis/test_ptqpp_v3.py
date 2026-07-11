@@ -37,13 +37,15 @@ def build_fx_quantized_model(model, calibration_loader):
     qconfig = get_default_qconfig("fbgemm")
     qconfig_mapping = torch.ao.quantization.QConfigMapping().set_global(qconfig)
 
-    example_inputs = (torch.randn(1, 3, 224, 224),)
+    # example_inputs = (torch.randn(1, 3, 224, 224),)
+    example_inputs = next(iter(calibration_loader))[0][:1]
 
     prepared = prepare_fx(
         copy.deepcopy(model),
         qconfig_mapping,
         example_inputs,
     )
+    set_seed()
 
     with torch.no_grad():
         for images, _ in calibration_loader:
@@ -92,7 +94,7 @@ def main():
 
     fp32_acc = evaluate(model, test_loader, device)
 
-    ptqpp_model = apply_proposed_ptq_pipeline_v3(model, device)
+    ptqpp_model = apply_proposed_ptq_pipeline_v3(model, calib_loader, device)
 
     ptqpp_fp32_acc = evaluate(ptqpp_model, test_loader, device)
 

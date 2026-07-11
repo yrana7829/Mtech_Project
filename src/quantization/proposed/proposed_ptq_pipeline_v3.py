@@ -4,6 +4,10 @@ from .proposed_lps_v3 import apply_proposed_lps_v3
 from .proposed_twc_v3 import apply_proposed_twc_v3
 from .proposed_mpa_v3 import apply_proposed_mpa_v3
 
+USE_LPS = True
+USE_TWC = False
+USE_MPA = False
+
 
 def apply_proposed_ptq_pipeline_v3(
     model,
@@ -27,27 +31,18 @@ def apply_proposed_ptq_pipeline_v3(
     print("Starting PTQ++ v3 Pipeline")
     print("========================================")
 
-    # ---------------------------------------
-    # Stage 1
-    # ---------------------------------------
+    if USE_LPS:
+        model = apply_proposed_lps_v3(
+            model,
+            calibration_loader,
+            device,
+        )
 
-    model = apply_proposed_lps_v3(
-        model,
-        calibration_loader,
-        device,
-    )
+    if USE_TWC:
+        model = apply_proposed_twc_v3(model)
 
-    # ---------------------------------------
-    # Stage 2
-    # ---------------------------------------
-
-    # model = apply_proposed_twc_v3(model)
-
-    # ---------------------------------------
-    # Stage 3
-    # ---------------------------------------
-
-    # model = apply_proposed_mpa_v3(model)
+    if USE_MPA:
+        model = apply_proposed_mpa_v3(model)
 
     print("\n========================================")
     print("PTQ++ v3 Pipeline Complete")
