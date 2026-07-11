@@ -4,8 +4,8 @@ from .proposed_lps_v3 import apply_proposed_lps_v3
 from .proposed_twc_v3 import apply_proposed_twc_v3
 from .proposed_mpa_v3 import apply_proposed_mpa_v3
 
-USE_LPS = True
-USE_TWC = False
+USE_LPS = False
+USE_TWC = True
 USE_MPA = False
 
 
