@@ -1,29 +1,9 @@
-"""
-scripts/export/export_ptqpp_v2_onnx.py
-
-PTQ++ v2 Export Script (template)
-
-This script is intentionally based on the working export_naive_ptq_onnx.py
-pipeline. Replace the helper functions below with the exact implementations
-from your validated exporter if they already exist in your project.
-
-Pipeline
---------
-FP32 checkpoint
-    -> PTQ++ v2 preprocessing (TWC + Mixed Precision)
-    -> FX PTQ (INT8)
-    -> Evaluate
-    -> Save INT8 checkpoint
-    -> Export ONNX
-    -> Validate ONNX
-    -> Compare PyTorch vs ONNX
-"""
-
 import os
 import argparse
 import random
 import numpy as np
 import torch
+import sys
 from torch.utils.data import DataLoader, Subset
 
 import onnx
@@ -32,6 +12,9 @@ import onnxruntime as ort
 from torch.ao.quantization import get_default_qconfig
 from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+
+sys.path.insert(0, PROJECT_ROOT)
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
 from src.evaluation.evaluate import evaluate
