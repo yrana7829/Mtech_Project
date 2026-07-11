@@ -15,10 +15,16 @@ import copy
 import random
 import numpy as np
 import torch
+import os
+import sys
 
 from torch.utils.data import DataLoader, Subset
 from torch.ao.quantization import get_default_qconfig
 from torch.ao.quantization.quantize_fx import prepare_fx, convert_fx
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+
+sys.path.insert(0, PROJECT_ROOT)
 
 from src.dataset.dataloader import get_dataset
 from src.models.model_loader import get_model
@@ -41,10 +47,7 @@ def build_fx_quantized_model(model, calibration_loader):
     model.eval()
 
     qconfig = get_default_qconfig("fbgemm")
-    qconfig_mapping = (
-        torch.ao.quantization.QConfigMapping()
-        .set_global(qconfig)
-    )
+    qconfig_mapping = torch.ao.quantization.QConfigMapping().set_global(qconfig)
 
     example_inputs = (torch.randn(1, 3, 224, 224),)
 
