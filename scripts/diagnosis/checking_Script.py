@@ -3,7 +3,7 @@ import sys
 import torch
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-
+sys.path.insert(0, project_root)
 from src.models.model_loader import get_model
 from src.quantization.proposed.proposed_lps_v2 import apply_proposed_lps_v2
 
