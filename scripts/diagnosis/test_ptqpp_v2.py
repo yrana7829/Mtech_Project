@@ -35,6 +35,7 @@ from src.quantization.proposed.proposed_ptq_pipeline_v2 import (
 
 SEED = 42
 CALIBRATION_SAMPLES = 1000
+device = torch.device("cpu")
 
 
 def set_seed(seed=SEED):
@@ -102,7 +103,7 @@ def main():
 
     model.eval()
 
-    fp32_acc = evaluate(model, test_loader)
+    fp32_acc = evaluate(model, test_loader, device
 
     ptqpp_model, allocation = apply_proposed_ptq_pipeline_v2(model)
 
