@@ -87,67 +87,65 @@ def build_calibration_loader(train_dataset, fixed_indices, batch_size):
 
 
 def build_fx_quantized_model(fp32_model, calibration_loader):
+    """
+    Build a real FX INT8 model.
+
+    This function is intentionally generic.
+
+    It can quantize:
+        - Original FP32 models
+        - PTQ++ preprocessed models
+        - AdaRound models
+        - Future PTQ variants
+
+    The incoming model must be a standard
+    nn.Module containing Conv2d / Linear layers.
+    """
 
     device = torch.device("cpu")
 
     fp32_model.eval()
     fp32_model.to(device)
 
-    # --------------------------------------------------------
-    # QUANTIZATION CONFIGURATION
-    # --------------------------------------------------------
+    torch.backends.quantized.engine = "fbgemm"
+
+    print("\n==================================================")
+    print("FX PTQ CONVERSION")
+    print("==================================================")
+
+    # ----------------------------------------------------------
+    # FX QConfig
+    # ----------------------------------------------------------
 
     qconfig = get_default_qconfig("fbgemm")
 
-    qconfig_dict = {"": qconfig}
+    qconfig_dict = {
+        "": qconfig,
+    }
 
-    # --------------------------------------------------------
-    # EXAMPLE INPUT
-    #
-    # This accesses the training dataset, which contains:
-    #
-    # RandomHorizontalFlip
-    # RandomRotation(10)
-    #
-    # Therefore this step consumes random state.
-    #
-    # That is acceptable because we reset every RNG
-    # immediately before actual calibration.
-    # --------------------------------------------------------
+    # ----------------------------------------------------------
+    # Example Input
+    # ----------------------------------------------------------
 
     example_inputs = next(iter(calibration_loader))[0][:1].to(device)
 
-    print("\nPreparing FX PTQ model...")
+    print("Preparing FX graph...")
 
-    prepared_model = prepare_fx(fp32_model, qconfig_dict, example_inputs)
+    prepared_model = prepare_fx(
+        fp32_model,
+        qconfig_dict,
+        example_inputs,
+    )
 
-    # --------------------------------------------------------
-    # CRITICAL REPRODUCIBILITY STEP
-    #
-    # The calibration dataset uses random augmentation.
-    #
-    # Therefore reset all RNGs immediately before the
-    # actual calibration pass.
-    #
-    # Combined with:
-    #
-    # fixed image indices
-    # shuffle=False
-    # num_workers=0
-    #
-    # this reproduces the exact same calibration tensors
-    # across independent PTQ reconstructions.
-    # --------------------------------------------------------
+    # ----------------------------------------------------------
+    # Deterministic calibration
+    # ----------------------------------------------------------
 
-    print("\nResetting RNG state before calibration...")
+    print("Resetting RNG before calibration...")
 
     set_all_seeds(CALIB_SEED)
 
-    # --------------------------------------------------------
-    # ACTUAL CALIBRATION
-    # --------------------------------------------------------
-
-    print("Running deterministic calibration...")
+    print("Running calibration...")
 
     with torch.no_grad():
 
@@ -157,15 +155,17 @@ def build_fx_quantized_model(fp32_model, calibration_loader):
 
             prepared_model(images)
 
-    # --------------------------------------------------------
-    # CONVERT TO REAL INT8 MODEL
-    # --------------------------------------------------------
+    # ----------------------------------------------------------
+    # Convert
+    # ----------------------------------------------------------
 
-    print("Converting to real INT8 model...")
+    print("Converting to INT8...")
 
     quantized_model = convert_fx(prepared_model)
 
     quantized_model.eval()
+
+    print("\nFX Quantization completed.")
 
     return quantized_model
 
