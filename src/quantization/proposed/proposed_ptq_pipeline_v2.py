@@ -32,7 +32,7 @@ def apply_proposed_ptq_pipeline_v2(model, device):
     # ----------------------------------------------------------
     # Stage 1
     # ----------------------------------------------------------
-    model = apply_proposed_lps_v2(model, device)
+    # model = apply_proposed_lps_v2(model, device)
 
     # ----------------------------------------------------------
     # Stage 2
