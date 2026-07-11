@@ -84,11 +84,11 @@ def build_calibration_loader(train_dataset, fixed_indices, batch_size):
 
 
 # ============================================================
-# BUILD DETERMINISTIC NAIVE FX PTQ MODEL
+# BUILD DETERMINISTIC FX QUANTIZED MODEL
 # ============================================================
 
 
-def build_naive_ptq_model(fp32_model, calibration_loader):
+def build_fx_quantized_model(fp32_model, calibration_loader):
 
     device = torch.device("cpu")
 
@@ -297,7 +297,7 @@ def export_to_onnx(model, output_path):
 
     dummy_input = torch.randn(1, 3, 224, 224)
 
-    print("\nExporting deterministic " "Naive FX PTQ model to ONNX...")
+    print("\nExporting PTQ++ INT8 model to ONNX...")
 
     torch.onnx.export(
         model,
@@ -362,7 +362,7 @@ def validate_onnx_structure(onnx_path):
 # ============================================================
 
 
-def compare_pytorch_ptq_and_onnx(quant_model, onnx_path, test_loader):
+def compare_pytorch_and_onnx(quant_model, onnx_path, test_loader):
 
     quant_model.eval()
 
@@ -639,8 +639,17 @@ def main():
     proposed_model = apply_proposed_ptq_pipeline(fp32_model, device)
 
     print("\nRunning FX quantization on PTQ++ model...")
+    print("\nEvaluating PTQ++ model before FX quantization...")
 
-    quant_model = build_naive_ptq_model(proposed_model, calibration_loader)
+    proposed_acc = evaluate(
+        proposed_model,
+        test_loader,
+        device,
+    )
+
+    print(f"PTQ++ (before FX) Accuracy: {proposed_acc*100:.2f}%")
+
+    quant_model = build_fx_quantized_model(proposed_model, calibration_loader)
 
     # ========================================================
     # INSPECT QUANTIZED MODEL
@@ -700,7 +709,7 @@ def main():
     # Exact exported artifact
     # ========================================================
 
-    fidelity_results = compare_pytorch_ptq_and_onnx(
+    fidelity_results = compare_pytorch_and_onnx(
         quant_model=quant_model, onnx_path=args.output, test_loader=test_loader
     )
 
@@ -710,13 +719,13 @@ def main():
 
     print("\n\n========================================")
 
-    print("FINAL DETERMINISTIC NAIVE PTQ " "EXPORT SUMMARY")
+    print("FINAL PTQ++ " "EXPORT SUMMARY")
 
     print("========================================")
 
     print("Method:")
 
-    print("Naive FX PTQ INT8")
+    print("PTQ++ FX INT8")
 
     print()
 
@@ -732,7 +741,7 @@ def main():
 
     print()
 
-    print(f"Source PyTorch PTQ Acc.   : " f"{ptq_accuracy_percent:.2f}%")
+    print(f"Source PTQ++ INT8 Acc.   : " f"{ptq_accuracy_percent:.2f}%")
 
     print(
         f"Paired PyTorch PTQ Acc.   : " f"{fidelity_results['pytorch_accuracy']:.2f}%"
