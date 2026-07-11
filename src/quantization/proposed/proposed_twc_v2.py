@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-PERCENTILE = 99.7
+PERCENTILE = 99.75
 
 
 def apply_proposed_twc_v2(model):
