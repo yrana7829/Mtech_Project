@@ -42,7 +42,7 @@ def apply_proposed_ptq_pipeline_v2(model, device):
     # ----------------------------------------------------------
     # Stage 3
     # ----------------------------------------------------------
-    model = apply_proposed_mixed_precision_v2(model)
+    # model = apply_proposed_mixed_precision_v2(model)
 
     print("=" * 60)
     print("PTQ++ v2 preprocessing completed.")
