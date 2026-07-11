@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+PERCENTILE = 99.8
+
 
 def apply_proposed_twc_v2(model):
     """
@@ -28,10 +30,11 @@ def apply_proposed_twc_v2(model):
         num_params = weight.numel()
 
         # Same adaptive policy as original implementation
-        if num_params > 50000:
-            percentile = 99.8
-        else:
-            percentile = 99.9
+        # if num_params > 50000:
+        #     percentile = 99.8
+        # else:
+        #     percentile = 99.9
+        percentile = PERCENTILE
 
         threshold = torch.quantile(
             weight.abs(),
