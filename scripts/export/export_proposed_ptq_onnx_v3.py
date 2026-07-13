@@ -41,6 +41,8 @@ def build_fx_quantized_model(fp32_model, calibration_loader):
     qconfig_dict = {"": qconfig}
 
     example_inputs = next(iter(calibration_loader))[0][:1].to(device)
+    images, _ = next(iter(calibration_loader))
+    print(images.sum())
 
     prepared = prepare_fx(fp32_model, qconfig_dict, example_inputs)
 

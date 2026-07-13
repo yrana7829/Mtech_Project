@@ -26,6 +26,27 @@ def get_transforms(img_size=224):
     return train_transform, test_transform
 
 
+def get_calibration_dataset(dataset_name, img_size=224):
+
+    base_path = f"datasets/standardized/{dataset_name}"
+
+    calibration_transform = transforms.Compose(
+        [
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ]
+    )
+
+    return datasets.ImageFolder(
+        os.path.join(base_path, "train"),
+        transform=calibration_transform,
+    )
+
+
 def get_dataset(dataset_name, batch_size=64):
 
     base_path = f"datasets/standardized/{dataset_name}"

@@ -1,11 +1,13 @@
 import argparse
 import os
+import subprocess
 import time
 from pathlib import Path
 
 import numpy as np
 import onnxruntime as ort
 from PIL import Image
+import platform
 
 # ---------------------------------------------------------
 # ImageNet normalization used in the original test pipeline
@@ -83,6 +85,19 @@ def main(args):
     print("\n==========================================")
     print(" Raspberry Pi ONNX Evaluation")
     print("==========================================\n")
+
+    print(f"Host              : {platform.node()}")
+    print(f"Architecture      : {platform.machine()}")
+    print(f"Python            : {platform.python_version()}")
+    print(f"ONNX Runtime      : {ort.__version__}")
+
+    try:
+        model = subprocess.check_output(
+            ["cat", "/proc/device-tree/model"], text=True
+        ).strip("\x00")
+        print(f"Hardware          : {model}")
+    except Exception:
+        pass
 
     # -----------------------------------------------------
     # Dataset
@@ -189,6 +204,10 @@ def main(args):
     print("\n==========================================")
     print(" RESULTS")
     print("==========================================")
+
+    print(f"ONNX Runtime : {ort.__version__}")
+    print(f"CPU Provider : {session.get_providers()[0]}")
+    print(f"Images/sec   : {total / total_elapsed:.2f}")
 
     print(f"Total images          : {total}")
     print(f"Correct predictions   : {correct}")
